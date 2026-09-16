@@ -336,16 +336,32 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
 
 <section id="fde"><div class="wrap">
   <h2>Watch them work together</h2>
-  <p class="sub">This is what all of it was for. A tiny program sits in memory. Step through it one bus transfer at a
-  time and watch each register do its one job. Nothing here is simulated hand-waving — every step is a real transfer
-  that happens in a real processor.</p>
+  <p class="sub">This is what all of it was for. Before you press anything, know what you are actually watching —
+  a tiny program is about to run, and it is doing something as ordinary as ringing up a sale.</p>
 
   <div class="analogy">
-    <h4>Fetch, decode, execute — the same three steps, forever</h4>
-    <p>Get the next instruction. Work out what it means. Do it. Then go back to the start. Your processor has done
-    nothing else since you turned it on, several billion times a second, and it will keep doing nothing else until you
-    turn it off. Every app, every game, every video call is that loop running very fast over a very long list.</p>
+    <h4>Ringing up a sale, one line at a time</h4>
+    <p>The five lines sitting in memory below are a program that, in plain English, says: <b>start the sale at $5,
+    add a $3 item, save that subtotal on the receipt, then take $2 off with a coupon.</b> Final total: $6. Once you
+    press Next step, watch the accumulator and you are watching the till display update. Watch memory address 0x07
+    and you are watching the receipt get written.</p>
+    <p>The CPU cannot read those four sentences in one go — it cannot read at all, really. So for every single line
+    it repeats the same three-step routine: <b>fetch</b> that line off the till roll, <b>decode</b> what it is
+    asking for, <b>execute</b> it, then go back for the next line. It has done nothing else since the day it was
+    switched on, several billion times a second, and it will keep doing nothing else until it is switched off.
+    Every app, every game, every video call is that loop running very fast over a very long list.</p>
   </div>
+
+  <table class="wire" style="margin:0 0 20px">
+    <thead><tr><th>Address</th><th>Instruction</th><th>In plain English</th></tr></thead>
+    <tbody>
+      <tr><td class="m">0x00</td><td class="m">LOAD 5</td><td>Start the sale at $5</td></tr>
+      <tr><td class="m">0x01</td><td class="m">ADD 3</td><td>Add a $3 item</td></tr>
+      <tr><td class="m">0x02</td><td class="m">STORE 7</td><td>Save the subtotal on the receipt</td></tr>
+      <tr><td class="m">0x03</td><td class="m">SUB 2</td><td>Take off a $2 coupon</td></tr>
+      <tr><td class="m">0x04</td><td class="m">HALT</td><td>Sale done</td></tr>
+    </tbody>
+  </table>
 
   <div class="panel">
     <div class="phase" id="fdePhase"></div>
@@ -667,11 +683,11 @@ const FSTEPS=[
     else if(i.op==='HALT'){f.halted=true;}
     f.flg.Z=f.acc===0?1:0; f.flg.N=f.acc<0?1:0; f.bus=f.acc;},
   m:f=>{const i=parse(f.ir);
-    if(i.op==='LOAD') return `<b>Execute.</b> LOAD puts <b>${i.arg}</b> straight into the accumulator. The accumulator is where arithmetic lives \u2014 everything passes through it. Straight onto the chopping board.`;
-    if(i.op==='ADD')  return `<b>Execute.</b> The ALU adds <b>${i.arg}</b> to the accumulator. That addition is happening in the ripple-carry adder you built in topic 3 \u2014 the chef's hands, not a bowl. Accumulator is now <b>${f.acc}</b>.`;
-    if(i.op==='SUB')  return `<b>Execute.</b> The ALU subtracts <b>${i.arg}</b>. Accumulator is now <b>${f.acc}</b>, and the flags have been updated to describe that result \u2014 the chef jotting down whether the bowl came up short.`;
-    if(i.op==='STORE')return `<b>Execute.</b> STORE writes the accumulator (<b>${f.acc}</b>) out to memory address <b>${i.arg}</b> \u2014 note that this needs the MAR and MDR again, because every trip to memory does. Shelf noted, bowl set down on it.`;
-    return `<b>Execute.</b> HALT. The cycle stops here. Without it the CPU would keep fetching whatever happened to be in the next memory location. Chef puts the knife down.`;}}
+    if(i.op==='LOAD') return `<b>Execute.</b> LOAD puts <b>${i.arg}</b> straight into the accumulator. The accumulator is where arithmetic lives \u2014 everything passes through it. That is the sale starting at $${i.arg} on the till display.`;
+    if(i.op==='ADD')  return `<b>Execute.</b> The ALU adds <b>${i.arg}</b> to the accumulator. That addition is happening in the ripple-carry adder you built in topic 3. Accumulator is now <b>${f.acc}</b> \u2014 the running total after that item.`;
+    if(i.op==='SUB')  return `<b>Execute.</b> The ALU subtracts <b>${i.arg}</b>. Accumulator is now <b>${f.acc}</b>, and the flags have been updated to describe that result \u2014 the coupon has just been taken off.`;
+    if(i.op==='STORE')return `<b>Execute.</b> STORE writes the accumulator (<b>${f.acc}</b>) out to memory address <b>${i.arg}</b> \u2014 note that this needs the MAR and MDR again, because every trip to memory does. The subtotal has just been written onto the receipt.`;
+    return `<b>Execute.</b> HALT. The cycle stops here. Without it the CPU would keep fetching whatever happened to be in the next memory location. Sale closed \u2014 final total <b>${f.acc}</b>.`;}}
 ];
 function parse(txt){const m=String(txt).match(/^(\w+)(?:\s+(\d+))?/);return m?{op:m[1],arg:m[2]===undefined?null:+m[2]}:{op:'?',arg:null};}
 function fdeDraw(){
@@ -691,7 +707,7 @@ function fdeDraw(){
     <span style="color:var(--ink3);font-size:.78rem">${st&&!F.halted?`${st.src||'\u2014'} \u2192 ${st.dst||'\u2014'}`:''}</span>`;
   $('#fdeMsg').className='feedback show '+(F.halted?'bad':'good');
   $('#fdeMsg').innerHTML=F.halted
-    ? `<b>Halted.</b> The program ran five instructions and the accumulator finished on <b>${F.acc}</b>. Check memory address 0x07 \u2014 STORE left a value behind there. Press Reset to run it again.`
+    ? `<b>Halted.</b> The sale is done \u2014 $5 plus a $3 item, minus a $2 coupon, comes to <b>${F.acc}</b>. Check memory address 0x07 \u2014 STORE left the $8 subtotal on the receipt there, from before the coupon was applied. Press Reset to run it again.`
     : (F.msg||'<b>Ready.</b> Press Next step and watch one transfer at a time. Every step is a real movement between real registers.');
   $('#fdeStep').disabled=F.halted;
 }
