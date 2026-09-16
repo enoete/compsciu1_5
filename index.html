@@ -18,7 +18,7 @@
 <meta name="lesson:sections"   content="9">
 <meta name="lesson:topics"     content="SISO,SIPO,PISO,PIPO,Shift registers,Universal shift register,Program counter,MAR,MDR,Instruction register,Accumulator,Fetch-decode-execute">
 <meta name="lesson:activities" content="Shift bench,Four-type animator,Shift trace table,Universal register,CPU register tour,Fetch-execute stepper,Four Logic.ly builds,Unit test">
-<meta name="lesson:updated"    content="2026-09-15">
+<meta name="lesson:updated"    content="2026-09-16">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -124,6 +124,7 @@ table.tr tr:last-child td{box-shadow:inset 0 -3px 0 var(--hot)}
 .reg .rn{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink3);font-weight:700}
 .reg .rv{font-family:"JetBrains Mono",monospace;font-size:1.1rem;font-weight:700;margin-top:3px}
 .reg .rd{font-size:.72rem;color:var(--ink3);margin-top:3px;line-height:1.3}
+.reg .rrole{font-size:.73rem;color:#8A5B08;margin-top:6px;font-style:italic;line-height:1.3}
 .reg.src{border-color:var(--cyan);background:rgba(14,124,155,.08);box-shadow:0 0 0 4px rgba(14,124,155,.14)}
 .reg.dst{border-color:var(--hot);background:#FFF6E6;box-shadow:0 0 0 4px rgba(194,118,42,.16)}
 .bus{margin:14px 0;border:2px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--paper);
@@ -607,24 +608,33 @@ uDraw();
 
 /* ================= CPU REGISTER TOUR ================= */
 const REGS=[
- {k:'PC', n:'Program Counter', d:'Holds the address of the next instruction. Your finger on the recipe.', w:'An address'},
- {k:'MAR',n:'Memory Address Register', d:'Holds the address the CPU wants to read from or write to. Says WHERE.', w:'An address'},
- {k:'MDR',n:'Memory Data Register', d:'Holds the data travelling to or from memory. Says WHAT. Also called the MBR.', w:'Data or an instruction'},
- {k:'IR', n:'Instruction Register', d:'Holds the instruction currently being carried out, while it is being decoded.', w:'An instruction'},
- {k:'ACC',n:'Accumulator', d:'Where arithmetic happens. Results land here before going anywhere else.', w:'A number'},
- {k:'ALU',n:'Arithmetic Logic Unit', d:'Not a register \u2014 the circuit that adds, subtracts and compares. You built its adder in topic 3.', w:'Nothing; it computes'},
- {k:'FLG',n:'Flags / Status Register', d:'One bit per fact about the last result: was it zero, was it negative, did it carry?', w:'Single-bit answers'},
- {k:'GP', n:'General Purpose Registers', d:'Scratch space the program can use for anything \u2014 R1, R2 and friends.', w:'Whatever you like'}
+ {k:'PC', n:'Program Counter', d:'Holds the address of the next instruction. Your finger on the recipe.', w:'An address',
+  role:'Your finger on the recipe \u2014 always pointing at the next line.'},
+ {k:'MAR',n:'Memory Address Register', d:'Holds the address the CPU wants to read from or write to. Says WHERE.', w:'An address',
+  role:'The shelf you just noted down \u2014 WHERE to look.'},
+ {k:'MDR',n:'Memory Data Register', d:'Holds the data travelling to or from memory. Says WHAT. Also called the MBR.', w:'Data or an instruction',
+  role:'What came back, sitting in the bowl by the door \u2014 WHAT you got.'},
+ {k:'IR', n:'Instruction Register', d:'Holds the instruction currently being carried out, while it is being decoded.', w:'An instruction',
+  role:'The line you read out loud and are now holding in your head.'},
+ {k:'ACC',n:'Accumulator', d:'Where arithmetic happens. Results land here before going anywhere else.', w:'A number',
+  role:'The ingredient on the chopping board \u2014 where the work actually happens.'},
+ {k:'ALU',n:'Arithmetic Logic Unit', d:'Not a register \u2014 the circuit that adds, subtracts and compares. You built its adder in topic 3.', w:'Nothing; it computes',
+  role:'Not a container at all \u2014 the chef\u2019s hands, actually doing the chopping.'},
+ {k:'FLG',n:'Flags / Status Register', d:'One bit per fact about the last result: was it zero, was it negative, did it carry?', w:'Single-bit answers',
+  role:'The little notes the chef jots down: ran out? went short?'},
+ {k:'GP', n:'General Purpose Registers', d:'Scratch space the program can use for anything \u2014 R1, R2 and friends.', w:'Whatever you like',
+  role:'The spare bowls on the counter \u2014 for whatever you need right now.'}
 ];
 $('#regTour').innerHTML=REGS.map((r,i)=>
   `<button class="reg" data-i="${i}" style="text-align:left;cursor:pointer">
      <div class="rn">${esc(r.k)}</div><div class="rv" style="font-size:.9rem">${esc(r.n)}</div>
+     <div class="rrole">\u201c${esc(r.role)}\u201d</div>
      <div class="rd">holds: ${esc(r.w)}</div></button>`).join('');
 $('#tourMsg').innerHTML='<b>Pick one.</b> Each of these is a row of flip-flops exactly like the register you built at the top of this page. Only the wiring differs.';
 $('#regTour').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b)return;
   $$('#regTour .reg').forEach(x=>x.classList.remove('src'));b.classList.add('src');
   const r=REGS[+b.dataset.i];
-  $('#tourMsg').innerHTML=`<b>${esc(r.k)} \u2014 ${esc(r.n)}.</b> ${esc(r.d)} It holds: ${esc(r.w)}.`;});
+  $('#tourMsg').innerHTML=`<b>${esc(r.k)} \u2014 ${esc(r.n)}.</b> In the recipe analogy: ${esc(r.role)} ${esc(r.d)} It holds: ${esc(r.w)}.`;});
 
 /* ================= FETCH - DECODE - EXECUTE ================= */
 const MEM=[
@@ -640,15 +650,15 @@ let F={pc:0,mar:'\u2014',mdr:'\u2014',ir:'\u2014',acc:0,flg:{Z:0,N:0},step:0,bus
 const PHASES=['Fetch','Decode','Execute'];
 const FSTEPS=[
  {ph:0,src:'PC', dst:'MAR', do:f=>{f.mar=f.pc;f.bus=f.pc;},
-  m:f=>`<b>Fetch, step 1.</b> The program counter says the next instruction lives at address <b>${f.pc}</b>, so that address is copied onto the bus and into the MAR. The MAR always holds a <em>where</em>, never a <em>what</em>.`},
+  m:f=>`<b>Fetch, step 1.</b> The program counter says the next instruction lives at address <b>${f.pc}</b>, so that address is copied onto the bus and into the MAR. The MAR always holds a <em>where</em>, never a <em>what</em>. Recipe version: you glance at your finger and note which shelf to check.`},
  {ph:0,src:'MEM',dst:'MDR', do:f=>{f.mdr=f.mem[f.mar].txt;f.bus=f.mdr;},
-  m:f=>`<b>Fetch, step 2.</b> Memory is told to read the address in the MAR, and hands back <span class="mono">${f.mdr}</span>. It arrives in the MDR \u2014 the register that holds whatever is travelling to or from memory.`},
+  m:f=>`<b>Fetch, step 2.</b> Memory is told to read the address in the MAR, and hands back <span class="mono">${f.mdr}</span>. It arrives in the MDR \u2014 the register that holds whatever is travelling to or from memory. That is the bowl by the door, filling up.`},
  {ph:0,src:'MDR',dst:'IR',  do:f=>{f.ir=f.mdr;f.bus=f.ir;},
-  m:f=>`<b>Fetch, step 3.</b> The instruction moves from the MDR into the instruction register, where it will sit for the rest of this cycle while the control unit works on it.`},
+  m:f=>`<b>Fetch, step 3.</b> The instruction moves from the MDR into the instruction register, where it will sit for the rest of this cycle while the control unit works on it. You are now holding that line in your head.`},
  {ph:0,src:'PC', dst:'PC',  do:f=>{f.pc++;f.bus=f.pc;},
-  m:f=>`<b>Fetch, step 4.</b> The PC is incremented to <b>${f.pc}</b> \u2014 right now, during the fetch, long before the current instruction has actually run. That is exactly why a jump works by overwriting the PC.`},
+  m:f=>`<b>Fetch, step 4.</b> The PC is incremented to <b>${f.pc}</b> \u2014 right now, during the fetch, long before the current instruction has actually run. That is exactly why a jump works by overwriting the PC. Your finger has already slid to the next line before you have even said this one out loud.`},
  {ph:1,src:'IR', dst:null,  do:f=>{f.bus=null;},
-  m:f=>{const i=parse(f.ir);return `<b>Decode.</b> The control unit reads <span class="mono">${esc(f.ir)}</span> and splits it into an operation (<b>${i.op}</b>) and an operand (<b>${i.arg===null?'none':i.arg}</b>). Nothing moves on the bus during decode \u2014 it is pure interpretation.`;}},
+  m:f=>{const i=parse(f.ir);return `<b>Decode.</b> The control unit reads <span class="mono">${esc(f.ir)}</span> and splits it into an operation (<b>${i.op}</b>) and an operand (<b>${i.arg===null?'none':i.arg}</b>). Nothing moves on the bus during decode \u2014 it is pure interpretation. Still just you, silently working out what the line you are holding actually means.`;}},
  {ph:2,src:null, dst:'ACC', do:f=>{const i=parse(f.ir);
     if(i.op==='LOAD'){f.acc=i.arg;}
     else if(i.op==='ADD'){f.acc+=i.arg;}
@@ -657,11 +667,11 @@ const FSTEPS=[
     else if(i.op==='HALT'){f.halted=true;}
     f.flg.Z=f.acc===0?1:0; f.flg.N=f.acc<0?1:0; f.bus=f.acc;},
   m:f=>{const i=parse(f.ir);
-    if(i.op==='LOAD') return `<b>Execute.</b> LOAD puts <b>${i.arg}</b> straight into the accumulator. The accumulator is where arithmetic lives \u2014 everything passes through it.`;
-    if(i.op==='ADD')  return `<b>Execute.</b> The ALU adds <b>${i.arg}</b> to the accumulator. That addition is happening in the ripple-carry adder you built in topic 3. Accumulator is now <b>${f.acc}</b>.`;
-    if(i.op==='SUB')  return `<b>Execute.</b> The ALU subtracts <b>${i.arg}</b>. Accumulator is now <b>${f.acc}</b>, and the flags have been updated to describe that result.`;
-    if(i.op==='STORE')return `<b>Execute.</b> STORE writes the accumulator (<b>${f.acc}</b>) out to memory address <b>${i.arg}</b> \u2014 note that this needs the MAR and MDR again, because every trip to memory does.`;
-    return `<b>Execute.</b> HALT. The cycle stops here. Without it the CPU would keep fetching whatever happened to be in the next memory location.`;}}
+    if(i.op==='LOAD') return `<b>Execute.</b> LOAD puts <b>${i.arg}</b> straight into the accumulator. The accumulator is where arithmetic lives \u2014 everything passes through it. Straight onto the chopping board.`;
+    if(i.op==='ADD')  return `<b>Execute.</b> The ALU adds <b>${i.arg}</b> to the accumulator. That addition is happening in the ripple-carry adder you built in topic 3 \u2014 the chef's hands, not a bowl. Accumulator is now <b>${f.acc}</b>.`;
+    if(i.op==='SUB')  return `<b>Execute.</b> The ALU subtracts <b>${i.arg}</b>. Accumulator is now <b>${f.acc}</b>, and the flags have been updated to describe that result \u2014 the chef jotting down whether the bowl came up short.`;
+    if(i.op==='STORE')return `<b>Execute.</b> STORE writes the accumulator (<b>${f.acc}</b>) out to memory address <b>${i.arg}</b> \u2014 note that this needs the MAR and MDR again, because every trip to memory does. Shelf noted, bowl set down on it.`;
+    return `<b>Execute.</b> HALT. The cycle stops here. Without it the CPU would keep fetching whatever happened to be in the next memory location. Chef puts the knife down.`;}}
 ];
 function parse(txt){const m=String(txt).match(/^(\w+)(?:\s+(\d+))?/);return m?{op:m[1],arg:m[2]===undefined?null:+m[2]}:{op:'?',arg:null};}
 function fdeDraw(){
@@ -674,7 +684,7 @@ function fdeDraw(){
     const r=REGS.find(x=>x.k===k);
     const cls=st&&st.src===k?'src':st&&st.dst===k?'dst':'';
     return `<div class="reg ${cls}"><div class="rn">${k}</div><div class="rv">${esc(rv[k])}</div>
-      <div class="rd">${esc(r?r.n:'')}</div></div>`;}).join('');
+      <div class="rrole">${esc(r?r.role:'')}</div></div>`;}).join('');
   $('#fdeBus').className='bus'+(F.bus!==null&&F.bus!==undefined?' live':'');
   $('#fdeBus').innerHTML=`<span style="color:var(--ink2);font-size:.78rem">DATA BUS</span>
     <span class="bv">${F.bus===null||F.bus===undefined?'idle':esc(F.bus)}</span>
