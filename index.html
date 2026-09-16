@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registers — From Four Flip-Flops to a Working CPU — CS Unit 1</title>
+
+<!-- ===== lesson manifest ===== -->
+<meta property="og:title" content="Registers: From Four Flip-Flops to a Working CPU">
+<meta property="og:description" content="SISO, SIPO, PISO and PIPO shift registers, the named registers inside a processor, and a fetch-decode-execute cycle you can step through one bus transfer at a time.">
+<meta property="og:site_name" content="CS Unit 1 · CFBC">
+<meta name="description" content="Shift registers, serial and parallel data, universal shift registers, CPU registers (PC, MAR, MDR, IR, ACC), the fetch-decode-execute cycle, and four fully wired Logic.ly builds.">
+<meta name="theme-color" content="#C2762A">
+<meta name="lesson:duration"   content="85 min">
+<meta name="lesson:difficulty" content="Core">
+<meta name="lesson:objectives" content="9">
+<meta name="lesson:questions"  content="40">
+<meta name="lesson:sections"   content="9">
+<meta name="lesson:topics"     content="SISO,SIPO,PISO,PIPO,Shift registers,Universal shift register,Program counter,MAR,MDR,Instruction register,Accumulator,Fetch-decode-execute">
+<meta name="lesson:activities" content="Shift bench,Four-type animator,Shift trace table,Universal register,CPU register tour,Fetch-execute stepper,Four Logic.ly builds,Unit test">
+<meta name="lesson:updated"    content="2026-09-15">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFF2; --board:#FFFFFF; --ink:#16202C; --ink2:#556577; --ink3:#8996A5;
+  --line:#D2D9E1; --hot:#C2762A; --amber:#F2A93B; --violet:#5A4B9C; --mint:#118D77; --red:#E04B2F; --cyan:#0E7C9B;
+  --lowbg:#DFE5EC;
+  --shadow:0 1px 0 rgba(22,32,44,.06), 0 12px 28px -18px rgba(22,32,44,.5);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Work Sans",system-ui,sans-serif;font-size:17px;line-height:1.65;
+  background-image:linear-gradient(rgba(22,32,44,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(22,32,44,.03) 1px,transparent 1px);background-size:26px 26px}
+h1,h2,h3,h4{font-family:"Space Grotesk",system-ui,sans-serif;line-height:1.12;letter-spacing:-.02em;margin:0}
+p{margin:0 0 1em}
+.wrap{max-width:940px;margin:0 auto;padding:0 22px}
+.mono{font-family:"JetBrains Mono",monospace}
+:focus-visible{outline:3px solid var(--violet);outline-offset:3px;border-radius:4px}
+button{font:inherit}
+.hide{display:none!important}
+
+nav.top{position:sticky;top:0;z-index:50;background:rgba(237,239,242,.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;gap:4px;overflow-x:auto;padding:9px 22px}
+nav.top a{white-space:nowrap;text-decoration:none;color:var(--ink2);font-size:.84rem;font-weight:500;padding:6px 11px;border-radius:7px}
+nav.top a:hover{background:var(--board);color:var(--ink)}
+nav.top a.home{color:var(--hot);font-weight:600}
+
+.hero{padding:44px 0 14px}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:.78rem;color:var(--hot);font-weight:700}
+.hero h1{font-size:clamp(2rem,5.6vw,3.4rem);font-weight:700;margin:12px 0 0}
+.hero .lede{max-width:58ch;color:var(--ink2);font-size:1.08rem;margin-top:16px}
+
+section{padding:52px 0 8px}
+section>.wrap>h2{font-size:clamp(1.6rem,4vw,2.2rem);margin-bottom:6px}
+.sub{color:var(--ink2);max-width:64ch;margin-bottom:26px}
+.panel{background:var(--board);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow);margin-bottom:18px}
+.note{border-left:4px solid var(--violet);background:rgba(90,75,156,.06);border-radius:0 10px 10px 0;padding:14px 18px;margin:18px 0}
+.note.warn{border-left-color:var(--amber);background:#FFF6E6}
+.note.win{border-left-color:var(--mint);background:rgba(17,141,119,.07)}
+.note.real{border-left-color:var(--red);background:rgba(224,75,47,.06)}
+.note b{font-family:"Space Grotesk",sans-serif}
+.analogy{border-left:4px solid var(--amber);background:#FFF6E6;border-radius:0 10px 10px 0;padding:16px 18px;margin:0 0 20px}
+.analogy h4{font-size:1rem;margin-bottom:6px;color:#8A5B08}
+.analogy p{margin:0;font-size:.96rem;color:#5D4208}
+
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;padding:10px 18px;font-size:.92rem;font-weight:600;cursor:pointer}
+.btn:hover{background:#0D1620}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{background:var(--paper)}
+.btn.accent{background:var(--hot);border-color:var(--hot)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.clkbtn{border:2px solid var(--hot);background:var(--board);color:var(--hot);border-radius:10px;padding:10px 18px;font-weight:700;font-size:.9rem;cursor:pointer;font-family:"JetBrains Mono",monospace}
+.clkbtn:hover{background:#FFF6E6}
+.feedback{margin-top:16px;padding:12px 16px;border-radius:10px;font-size:.94rem;display:none}
+.feedback.show{display:block}
+.feedback.good{background:rgba(17,141,119,.1);border-left:4px solid var(--mint)}
+.feedback.bad{background:rgba(224,75,47,.09);border-left:4px solid var(--red)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tab{border:1px solid var(--line);background:var(--board);border-radius:9px;padding:8px 15px;font-size:.88rem;cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--hot);color:#fff;border-color:var(--hot)}
+
+/* ---- shift register visual ---- */
+.rig{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding:8px 2px}
+.cellbox{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
+.cell{width:58px;height:62px;border:3px solid var(--line);border-radius:11px;background:var(--lowbg);
+  display:grid;place-items:center;font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1.5rem;color:var(--ink3);
+  transition:background .25s,border-color .25s,color .25s,transform .25s}
+.cell.on{background:var(--amber);border-color:#D89321;color:#2A1B00}
+.cell.pop{animation:pop .35s}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+.cell .tag{font-size:.6rem}
+.cellbox small{font-family:"JetBrains Mono",monospace;font-size:.68rem;color:var(--ink3)}
+.arrow{font-size:1.5rem;color:var(--line);flex:0 0 auto;transition:color .2s}
+.arrow.live{color:var(--hot)}
+.port{flex:0 0 auto;text-align:center;min-width:64px}
+.port .plabel{font-family:"JetBrains Mono",monospace;font-size:.68rem;color:var(--ink3);display:block;margin-bottom:4px}
+.port .pval{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1.05rem;padding:7px 10px;border-radius:8px;
+  border:2px dashed var(--line);color:var(--ink3);display:inline-block;min-width:44px}
+.port .pval.live{border-style:solid;border-color:var(--hot);color:var(--hot);background:#FFF6E6}
+.port.off{opacity:.25}
+.pbus{display:flex;gap:8px;justify-content:center;margin:4px 0 0}
+.pbus .pb{width:58px;text-align:center;font-family:"JetBrains Mono",monospace;font-size:.78rem;color:var(--ink3)}
+.pbus.off{opacity:.22}
+.tape{font-family:"JetBrains Mono",monospace;font-size:1rem;letter-spacing:.32em;background:var(--ink);color:#fff;border-radius:9px;padding:10px 14px;overflow-x:auto;white-space:nowrap}
+.tape .next{color:var(--amber);text-decoration:underline}
+.tape .done{opacity:.35}
+
+table.tr{border-collapse:collapse;width:100%;font-family:"JetBrains Mono",monospace;font-size:.84rem;margin-top:12px}
+table.tr th,table.tr td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+table.tr th{background:var(--paper);font-size:.72rem;color:var(--ink2)}
+table.tr td.b1{background:rgba(242,169,59,.22);font-weight:700}
+table.tr tr:last-child td{box-shadow:inset 0 -3px 0 var(--hot)}
+
+/* ---- CPU ---- */
+.cpu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.reg{border:2px solid var(--line);background:var(--board);border-radius:11px;padding:11px 13px;transition:.25s}
+.reg .rn{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink3);font-weight:700}
+.reg .rv{font-family:"JetBrains Mono",monospace;font-size:1.1rem;font-weight:700;margin-top:3px}
+.reg .rd{font-size:.72rem;color:var(--ink3);margin-top:3px;line-height:1.3}
+.reg.src{border-color:var(--cyan);background:rgba(14,124,155,.08);box-shadow:0 0 0 4px rgba(14,124,155,.14)}
+.reg.dst{border-color:var(--hot);background:#FFF6E6;box-shadow:0 0 0 4px rgba(194,118,42,.16)}
+.bus{margin:14px 0;border:2px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--paper);
+  font-family:"JetBrains Mono",monospace;font-size:.9rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bus.live{border-color:var(--hot);background:#FFF6E6}
+.bus .bv{font-weight:700;font-size:1.1rem;color:var(--hot)}
+.mem{font-family:"JetBrains Mono",monospace;font-size:.82rem}
+.mem .ml{display:flex;justify-content:space-between;gap:10px;padding:4px 9px;border-radius:6px;border:1px solid transparent}
+.mem .ml.cur{background:rgba(14,124,155,.12);border-color:var(--cyan);font-weight:700}
+.mem .ml.wrote{background:rgba(17,141,119,.14);border-color:var(--mint)}
+.phase{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.ph{flex:1 1 90px;text-align:center;border:2px solid var(--line);border-radius:9px;padding:7px;font-size:.82rem;font-weight:600;color:var(--ink3)}
+.ph.on{background:var(--hot);border-color:var(--hot);color:#fff}
+
+/* ---- build guide ---- */
+table.wire{border-collapse:collapse;width:100%;font-size:.84rem;margin:12px 0}
+table.wire th,table.wire td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+table.wire th{background:var(--paper);font-size:.74rem;color:var(--ink2)}
+table.wire td.m{font-family:"JetBrains Mono",monospace}
+.steps{counter-reset:s;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:0 0 13px 38px;font-size:.95rem;color:var(--ink2)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
+  background:var(--hot);color:#fff;display:grid;place-items:center;font-family:"JetBrains Mono",monospace;font-size:.78rem;font-weight:700}
+.steps li b{color:var(--ink)}
+.chk{background:rgba(17,141,119,.07);border:1px solid rgba(17,141,119,.3);border-radius:10px;padding:13px 16px;margin-top:14px;font-size:.92rem}
+.chk b{font-family:"Space Grotesk",sans-serif;color:#0B5F50}
+.parts{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 16px}
+.part{font-family:"JetBrains Mono",monospace;font-size:.78rem;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--ink2)}
+footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;color:var(--ink3);font-size:.86rem}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <a class="home" href="https://enoete.github.io/compsciu1_hub/">← Unit 1 hub</a>
+  <a href="#why">Why serial</a>
+  <a href="#four">SISO SIPO PISO PIPO</a>
+  <a href="#universal">Universal register</a>
+  <a href="#cpu">Inside the CPU</a>
+  <a href="#fde">Fetch–execute</a>
+  <a href="#build">Logic.ly builds</a>
+  <a href="#test">Unit test</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">TOPIC 05 · COMPUTER ARCHITECTURE</div>
+  <h1>Registers: four flip-flops that grew up</h1>
+  <p class="lede">Last topic you built a thing that holds one bit. Put four of them in a row and wire each one's output
+  into the next one's input, and something unexpected happens — the data starts to <em>move</em>. That one change turns
+  storage into a conveyor belt, and conveyor belts turn out to be how your keyboard talks to your computer, how a
+  processor counts, and how every instruction your machine has ever run got fetched. Push the button and watch a bit
+  walk.</p>
+
+  <div class="panel" style="margin-top:26px">
+    <h3 style="margin-bottom:4px">A 4-bit shift register</h3>
+    <p style="font-size:.92rem;color:var(--ink2);margin-bottom:16px">Set the serial input, then pulse the clock.
+    Every bit steps one place to the right, and whatever falls off the end is gone.</p>
+    <div class="rig" id="heroRig"></div>
+    <div class="btnrow">
+      <button class="clkbtn" id="heroClk">▲ Clock pulse</button>
+      <button class="btn ghost" id="heroIn">Serial input: <b id="heroInV">1</b></button>
+      <button class="btn ghost" id="heroReset">Clear</button>
+      <span class="mono" style="font-size:.86rem;color:var(--ink2)" id="heroMsg"></span>
+    </div>
+  </div>
+</div></header>
+
+<section id="why"><div class="wrap">
+  <h2>Why bother moving data one bit at a time?</h2>
+  <p class="sub">It looks obviously worse. Four bits at once beats one bit four times over, every time. So why does
+  almost every cable you own send data serially?</p>
+
+  <div class="analogy">
+    <h4>Count the wires in a USB cable</h4>
+    <p>Your laptop moves data 64 bits at a time internally. If your USB cable worked the same way it would need 64
+    separate wires inside it, all exactly the same length, all perfectly in step, for two metres. That cable would be
+    as thick as your wrist, cost a fortune, and stop working if one strand stretched slightly. So instead the cable has
+    <em>one</em> data wire and sends the bits one after another, very fast. Something at each end converts between the
+    two. That converter is a shift register, and it is why the cable in your bag is thinner than a pencil.</p>
+  </div>
+
+  <div class="note win"><b>This is the single most useful thing in the topic.</b> Parallel is fast but expensive in
+  wires. Serial is cheap in wires but takes more clock cycles. A shift register is the translator between the two
+  worlds, which is why <b>SIPO</b> (serial in, parallel out) and <b>PISO</b> (parallel in, serial out) exist at all.
+  If an exam asks why shift registers matter, that sentence is the answer.</div>
+
+  <div class="note real"><b>Where the conversion is happening right now.</b> Your keyboard sends each keypress to the
+  computer serially down a couple of wires; a SIPO register at the other end reassembles it into a parallel byte.
+  Ethernet, SATA, HDMI and USB all do the same. Even inside a chip, sending 64 signals across the silicon costs real
+  area, so designers convert to serial for long runs and back to parallel at the destination.</div>
+</div></section>
+
+<section id="four"><div class="wrap">
+  <h2>The four types, side by side</h2>
+  <p class="sub">All four are the same four flip-flops. The only thing that changes is which doors are open — how data
+  gets <em>in</em>, and how it gets <em>out</em>. Two choices, two positions each, four combinations. That is the whole
+  naming scheme.</p>
+
+  <div class="analogy">
+    <h4>A cinema with two kinds of door</h4>
+    <p>People can come in through one turnstile, single file, or through a bank of doors all at once. Same for leaving.
+    Nobody changes the seats — only the doors. A turnstile in and a turnstile out is <b>SISO</b>. Turnstile in, wide
+    doors out is <b>SIPO</b>. Wide doors in, turnstile out is <b>PISO</b>. Wide doors both ends is <b>PIPO</b>, and it
+    is the fastest by a mile because nobody queues. Read the four letters and you already know which doors are open.</p>
+  </div>
+
+  <div class="panel">
+    <div class="tabs" id="srSel"></div>
+    <p class="sub" id="srStory" style="margin-bottom:6px"></p>
+    <div class="note" style="margin:0 0 16px" id="srDoors"></div>
+
+    <div id="srParIn"></div>
+    <div class="rig" id="srRig"></div>
+    <div id="srParOut"></div>
+
+    <div style="margin-top:18px" id="srTapeBox"></div>
+
+    <div class="btnrow">
+      <button class="clkbtn" id="srClk">▲ Clock pulse</button>
+      <button class="btn accent" id="srRun">Run the whole sequence</button>
+      <button class="btn ghost" id="srLoad">Parallel load</button>
+      <button class="btn ghost" id="srReset">Reset</button>
+    </div>
+    <div class="feedback show good" id="srMsg" style="margin-top:16px"></div>
+
+    <h4 style="margin:22px 0 4px;font-size:1rem">Clock-by-clock trace</h4>
+    <p style="font-size:.86rem;color:var(--ink2);margin:0">Exams ask for exactly this table. Build it here so the shape
+    is familiar when you have to draw one under pressure.</p>
+    <div id="srTrace"></div>
+  </div>
+
+  <div class="note warn"><b>The mistake that costs whole questions.</b> A serial register needs <b>one clock pulse per
+  bit</b>. Loading four bits serially takes four pulses; a parallel load takes one. So when a question says "how many
+  clock cycles to load an 8-bit value", the answer is 8 for serial input and 1 for parallel input — and the same logic
+  applies to getting data back out. Count the bits, count the pulses.</div>
+</div></section>
+
+<section id="universal"><div class="wrap">
+  <h2>The universal shift register</h2>
+  <p class="sub">One register that can do all of it: load in parallel, shift right, shift left, or sit still. Two
+  control lines pick the mode, and a multiplexer on each bit does the choosing — the same MUX you built in topic 3,
+  finally doing a real job.</p>
+
+  <div class="analogy">
+    <h4>The gear stick</h4>
+    <p>A car does not have four separate engines for park, forward, reverse and neutral. It has one engine and a gear
+    selector. A universal shift register is the same idea: one set of flip-flops, and a two-bit selector that decides
+    whether this clock pulse means load, shift right, shift left or hold. Change the gear, not the engine.</p>
+  </div>
+
+  <div class="panel">
+    <div class="tabs" id="uMode"></div>
+    <div class="rig" id="uRig"></div>
+    <div class="btnrow">
+      <button class="clkbtn" id="uClk">▲ Clock pulse</button>
+      <button class="btn ghost" id="uSerial">Serial input: <b id="uSerialV">1</b></button>
+      <button class="btn ghost" id="uRand">Random parallel data</button>
+      <button class="btn ghost" id="uReset">Clear</button>
+    </div>
+    <div class="feedback show good" id="uMsg" style="margin-top:16px"></div>
+    <table class="wire" style="margin-top:18px"><thead><tr><th>S1</th><th>S0</th><th>Mode</th><th>What each flip-flop's MUX selects</th></tr></thead>
+      <tbody>
+        <tr><td class="m">0</td><td class="m">0</td><td><b>Hold</b></td><td class="m">its own Q (feeds itself back)</td></tr>
+        <tr><td class="m">0</td><td class="m">1</td><td><b>Shift right</b></td><td class="m">Q of the flip-flop to its left</td></tr>
+        <tr><td class="m">1</td><td class="m">0</td><td><b>Shift left</b></td><td class="m">Q of the flip-flop to its right</td></tr>
+        <tr><td class="m">1</td><td class="m">1</td><td><b>Parallel load</b></td><td class="m">its own external data input</td></tr>
+      </tbody></table>
+    <div class="note win" style="margin-bottom:0"><b>Four choices per bit means a 4-to-1 multiplexer per bit.</b>
+    That is it. That is the entire design. A 4-bit universal shift register is four D flip-flops and four 4:1
+    multiplexers, with S1 and S0 wired to every multiplexer's select lines at once. If you can draw one bit of it, you
+    can draw all four.</div>
+  </div>
+
+  <div class="note real"><b>Shifting left multiplies by two. Shifting right divides by two.</b> Try it above: load
+  0011 (three), shift left, and you get 0110 (six). Shift left again for 1100 (twelve). Processors use this constantly
+  because shifting is enormously cheaper than real multiplication — if a program multiplies by 8, the compiler quietly
+  turns it into three left shifts and nobody mentions it.</div>
+</div></section>
+
+<section id="cpu"><div class="wrap">
+  <h2>The registers with names</h2>
+  <p class="sub">Inside a processor there are registers doing specific jobs, and each one has a name you are expected
+  to know. They are not special hardware — every one of them is a row of flip-flops exactly like the one you just
+  built. What makes them different is what they are wired to.</p>
+
+  <div class="analogy">
+    <h4>A chef working from a recipe book</h4>
+    <p>The book is on a stand, open at a page. Your finger marks which line you are on — that is the <b>program
+    counter</b>. You read that line out loud and hold it in your head while you work — the <b>instruction register</b>.
+    The ingredient you are currently chopping sits on the board in front of you — the <b>accumulator</b>. When you need
+    something from the pantry you first note down which shelf — the <b>memory address register</b> — and what comes
+    back sits in the bowl by the door — the <b>memory data register</b>. Nobody gets a bigger kitchen. Each thing just
+    has its own place, so you never have to wonder where anything is.</p>
+  </div>
+
+  <div class="panel">
+    <div class="cpu" id="regTour"></div>
+    <p style="font-size:.88rem;color:var(--ink3);margin:14px 0 0">Click any register to see what it does and where it
+    appears in the cycle below.</p>
+    <div class="feedback show good" id="tourMsg" style="margin-top:14px"></div>
+  </div>
+
+  <div class="note warn"><b>MDR and MBR — the pair everyone muddles.</b> The <b>Memory Address Register</b> holds
+  <em>where</em>. The <b>Memory Data Register</b> holds <em>what</em>. Some textbooks also call the MDR a
+  <b>Memory Buffer Register</b> — they are the same thing under two names, and CAPE papers use both. If a question
+  mentions both MDR and MBR as separate items, treat MBR as the buffer sitting on the bus and MDR as the register the
+  CPU reads from; say in one line that many designs merge them, and you will not lose the mark either way.</div>
+</div></section>
+
+<section id="fde"><div class="wrap">
+  <h2>Watch them work together</h2>
+  <p class="sub">This is what all of it was for. A tiny program sits in memory. Step through it one bus transfer at a
+  time and watch each register do its one job. Nothing here is simulated hand-waving — every step is a real transfer
+  that happens in a real processor.</p>
+
+  <div class="analogy">
+    <h4>Fetch, decode, execute — the same three steps, forever</h4>
+    <p>Get the next instruction. Work out what it means. Do it. Then go back to the start. Your processor has done
+    nothing else since you turned it on, several billion times a second, and it will keep doing nothing else until you
+    turn it off. Every app, every game, every video call is that loop running very fast over a very long list.</p>
+  </div>
+
+  <div class="panel">
+    <div class="phase" id="fdePhase"></div>
+    <div class="two" style="gap:16px">
+      <div>
+        <h4 style="font-size:.95rem;margin-bottom:8px">Main memory</h4>
+        <div class="mem" id="fdeMem"></div>
+      </div>
+      <div>
+        <h4 style="font-size:.95rem;margin-bottom:8px">Registers</h4>
+        <div class="cpu" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))" id="fdeRegs"></div>
+      </div>
+    </div>
+    <div class="bus" id="fdeBus"></div>
+    <div class="feedback show good" id="fdeMsg"></div>
+    <div class="btnrow">
+      <button class="clkbtn" id="fdeStep">▲ Next step</button>
+      <button class="btn accent" id="fdeRun">Run</button>
+      <button class="btn ghost" id="fdeStop">Pause</button>
+      <button class="btn ghost" id="fdeReset">Reset</button>
+      <label style="font-size:.85rem;color:var(--ink2);display:flex;align-items:center;gap:8px">Speed
+        <input type="range" id="fdeSpeed" min="1" max="5" value="3"></label>
+    </div>
+  </div>
+
+  <div class="note win"><b>Notice what the program counter does, and when.</b> It is incremented during the
+  <em>fetch</em>, not at the end of the instruction. By the time the CPU is executing the current instruction, the PC
+  is already pointing at the next one. That is why a jump instruction works by overwriting the PC — it is simply
+  telling the finger to move to a different line of the recipe.</div>
+</div></section>
+
+<section id="build"><div class="wrap">
+  <h2>Build all four in Logic.ly</h2>
+  <p class="sub">Every wire spelled out. Follow the tables exactly and the circuits will work first time — and if one
+  does not, the check step at the end of each build tells you precisely what to look at.</p>
+
+  <div class="panel" style="border-left:4px solid var(--red)">
+    <h3 style="margin-bottom:8px">Three rules before you place a single component</h3>
+    <ol class="steps" style="margin-top:12px">
+      <li><b>PRE′ and CLR′ go to toggle switches, switched ON.</b> Every flip-flop, every time. They are active low,
+        so a 1 means "leave me alone". A flip-flop that ignores everything you do is almost always one of these sitting
+        at 0.</li>
+      <li><b>All CLK pins connect to the SAME clock source.</b> One button, wired to all four. If each flip-flop gets
+        its own button you have built four separate flip-flops that happen to be near each other, not a register.</li>
+      <li><b>Bit order matters on the display.</b> Q0 is the least significant bit and goes to display input A.
+        Q3 is the most significant and goes to input D. Get this backwards and your decimal readout will be nonsense
+        while your LEDs look perfectly fine.</li>
+    </ol>
+  </div>
+
+  <div class="tabs" id="bSel"></div>
+  <div class="panel" id="bBody"></div>
+</div></section>
+
+<section id="test"><div class="wrap">
+  <h2>Unit test</h2>
+  <p class="sub">Forty questions. Nothing is saved, nothing is sent, nobody sees your score but you. Every answer is
+  explained, and the breakdown at the end tells you exactly which section to go back and play with.</p>
+
+  <div id="testIntro" class="panel">
+    <h3 style="margin-bottom:10px">What it covers</h3>
+    <ul style="color:var(--ink2);font-size:.96rem;margin:0;padding-left:20px">
+      <li><b>Part A</b> — registers, serial and parallel (8 questions)</li>
+      <li><b>Part B</b> — SISO, SIPO, PISO, PIPO (9)</li>
+      <li><b>Part C</b> — shift registers, universal registers, counters (8)</li>
+      <li><b>Part D</b> — CPU registers and what each one holds (8)</li>
+      <li><b>Part E</b> — the fetch–decode–execute cycle (7)</li>
+    </ul>
+    <div class="btnrow"><button class="btn accent" id="testStart">Start the test</button></div>
+  </div>
+
+  <div id="testRun" class="hide">
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+      <span class="mono" id="testPos"></span>
+      <div style="flex:1 1 180px;height:9px;background:var(--lowbg);border-radius:999px;overflow:hidden;min-width:140px">
+        <i id="testMeter" style="display:block;height:100%;background:var(--hot);width:0;transition:width .3s"></i></div>
+      <span class="mono" id="testScore"></span>
+    </div>
+    <div class="panel" id="qcard" style="margin-bottom:0"></div>
+    <div class="btnrow"><button class="btn ghost" id="testQuit">End test early</button></div>
+  </div>
+
+  <div id="testDone" class="hide">
+    <div class="panel" style="text-align:center;padding:34px 22px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:4.2rem;font-weight:700;line-height:1" id="doneScore"></div>
+      <div class="mono" style="font-size:1.1rem;color:var(--ink2)" id="doneGrade"></div>
+      <p style="max-width:44ch;margin:18px auto 0;color:var(--ink2)" id="doneMsg"></p>
+      <div style="display:grid;gap:10px;max-width:480px;margin:26px auto 0;text-align:left" id="doneBreak"></div>
+      <div class="btnrow" style="justify-content:center">
+        <button class="btn accent" id="retryWrong">Retry only what I missed</button>
+        <button class="btn ghost" id="retryAll">Start over</button>
+        <button class="btn ghost" id="reviewAll">Review every question</button>
+      </div>
+    </div>
+    <div id="reviewBox"></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  Computer Science Unit 1 · Clarence Fitzroy Bryant College · Topic 5 of the unit.
+  Built for the classroom — nothing you do on this page is saved or sent anywhere.
+</div></footer>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dec=a=>a.reduce((n,x)=>n*2+x,0);           // a[0] is MSB
+const LBL=['Q3','Q2','Q1','Q0'];
+
+/* cells[0] = Q3, leftmost, nearest the serial input. cells[3] = Q0, serial output. */
+function shiftRight(cells,inBit){ const out=cells[3]; return {cells:[inBit,cells[0],cells[1],cells[2]],out}; }
+function shiftLeft(cells,inBit){ const out=cells[0]; return {cells:[cells[1],cells[2],cells[3],inBit],out}; }
+
+function rigHTML(cells,opts={}){
+  const o=Object.assign({si:true,so:true,inVal:null,outVal:null,changed:[]},opts);
+  let h='';
+  h+=`<div class="port ${o.si?'':'off'}"><span class="plabel">serial in</span>
+      <span class="pval ${o.si?'live':''}">${o.si&&o.inVal!==null?o.inVal:'\u2014'}</span></div>`;
+  h+=`<span class="arrow ${o.si?'live':''}">\u2192</span>`;
+  cells.forEach((v,i)=>{
+    h+=`<div class="cellbox"><div class="cell ${v?'on':''} ${o.changed.includes(i)?'pop':''}">${v}</div>
+        <small>${LBL[i]}</small></div>`;
+    if(i<3) h+=`<span class="arrow live">\u2192</span>`;
+  });
+  h+=`<span class="arrow ${o.so?'live':''}">\u2192</span>`;
+  h+=`<div class="port ${o.so?'':'off'}"><span class="plabel">serial out</span>
+      <span class="pval ${o.so?'live':''}">${o.so&&o.outVal!==null?o.outVal:'\u2014'}</span></div>`;
+  return h;
+}
+
+/* ================= HERO ================= */
+const H={c:[0,0,0,0],in:1,out:null,n:0};
+function heroDraw(ch){
+  $('#heroRig').innerHTML=rigHTML(H.c,{inVal:H.in,outVal:H.out,changed:ch||[]});
+  $('#heroInV').textContent=H.in;
+  $('#heroMsg').innerHTML=H.n?`pulse ${H.n} \u00b7 register holds <b>${H.c.join('')}</b> = ${dec(H.c)} decimal${H.out!==null?` \u00b7 bit <b>${H.out}</b> fell off the end`:''}`
+    :'Set the serial input, then pulse the clock.';
+}
+$('#heroClk').addEventListener('click',()=>{const r=shiftRight(H.c,H.in);H.c=r.cells;H.out=r.out;H.n++;heroDraw([0,1,2,3]);});
+$('#heroIn').addEventListener('click',()=>{H.in^=1;heroDraw();});
+$('#heroReset').addEventListener('click',()=>{H.c=[0,0,0,0];H.out=null;H.n=0;heroDraw();});
+heroDraw();
+
+/* ================= FOUR TYPES ================= */
+const TYPES={
+ SISO:{t:'SISO',full:'Serial In, Serial Out',si:true,so:true,pi:false,po:false,
+  story:'Bits go in one at a time and come out one at a time, four clock pulses later. The register is acting as a delay line \u2014 whatever you put in appears at the other end four ticks after you sent it.',
+  doors:'<b>In:</b> one wire, one bit per clock pulse. <b>Out:</b> one wire, one bit per clock pulse. Nothing is read from the middle.',
+  use:'Delay lines, and shifting data along without needing to look at it.'},
+ SIPO:{t:'SIPO',full:'Serial In, Parallel Out',si:true,so:false,pi:false,po:true,
+  story:'Bits arrive one at a time down a single wire, and after four pulses you read all four at once. This is the receiving end of every serial cable you own.',
+  doors:'<b>In:</b> one wire, one bit per pulse. <b>Out:</b> four wires, all read together at any moment.',
+  use:'Serial-to-parallel conversion \u2014 your keyboard, USB, Ethernet. Data arrives down one wire and gets reassembled into a whole byte.'},
+ PISO:{t:'PISO',full:'Parallel In, Serial Out',si:false,so:true,pi:true,po:false,
+  story:'All four bits load in one single pulse, then shift out one at a time. This is the transmitting end of a serial cable, and it is the hardest of the four to build because each bit needs a multiplexer to choose between loading and shifting.',
+  doors:'<b>In:</b> four wires, loaded together on one pulse. <b>Out:</b> one wire, one bit per pulse afterwards.',
+  use:'Parallel-to-serial conversion \u2014 anything sending data down a cable.'},
+ PIPO:{t:'PIPO',full:'Parallel In, Parallel Out',si:false,so:false,pi:true,po:true,
+  story:'Everything in at once, everything out at once. No shifting happens at all \u2014 which makes this the fastest of the four and also the least interesting, because it is just four D flip-flops sharing a clock.',
+  doors:'<b>In:</b> four wires, one pulse. <b>Out:</b> four wires, readable immediately.',
+  use:'Every CPU register. When speed matters more than wire count, this is what you use.'}
+};
+const STREAM=[1,1,0,1];          // fed LSB first, so the register ends up holding 1011
+const PARDATA=[1,0,1,1];
+let sType='SISO', sC=[0,0,0,0], sIdx=0, sOut=null, sTrace=[], sLoaded=false, sRun=null;
+
+function srDraw(ch){
+  const T=TYPES[sType];
+  $('#srSel').innerHTML=Object.keys(TYPES).map(k=>
+    `<button class="tab" data-t="${k}" aria-pressed="${k===sType}">${k}</button>`).join('');
+  $('#srStory').textContent=T.story;
+  $('#srDoors').innerHTML=`<b>${esc(T.full)}.</b> ${T.doors} <br><span style="color:var(--ink3)">Used for: ${esc(T.use)}</span>`;
+  $('#srParIn').innerHTML=T.pi
+    ? `<div class="pbus"><span style="font-family:JetBrains Mono,monospace;font-size:.72rem;color:var(--hot);align-self:center">parallel in \u2193</span></div>
+       <div class="pbus">${PARDATA.map(v=>`<span class="pb" style="color:var(--hot);font-weight:700;font-size:1rem">${v}</span>`).join('')}</div>`
+    : `<div class="pbus off"><span class="pb" style="width:auto;font-size:.72rem">no parallel input on this type</span></div>`;
+  $('#srParOut').innerHTML=T.po
+    ? `<div class="pbus">${sC.map(v=>`<span class="pb" style="color:var(--hot);font-weight:700;font-size:1rem">${v}</span>`).join('')}</div>
+       <div class="pbus"><span style="font-family:JetBrains Mono,monospace;font-size:.72rem;color:var(--hot)">parallel out \u2191 = ${sC.join('')} = ${dec(sC)} decimal</span></div>`
+    : `<div class="pbus off"><span class="pb" style="width:auto;font-size:.72rem">no parallel output on this type</span></div>`;
+  $('#srRig').innerHTML=rigHTML(sC,{si:T.si,so:T.so,inVal:T.si?STREAM[sIdx%4]:null,outVal:sOut,changed:ch||[]});
+  $('#srTapeBox').innerHTML=T.si
+    ? `<span class="mono" style="font-size:.78rem;color:var(--ink2)">incoming stream, least significant bit first</span>
+       <div class="tape">${STREAM.map((b,i)=>`<span class="${i<sIdx?'done':i===sIdx?'next':''}">${b}</span>`).join('')}</div>`
+    : `<span class="mono" style="font-size:.78rem;color:var(--ink2)">parallel data waiting on the input pins</span>
+       <div class="tape">${PARDATA.join('')} <span style="opacity:.5;letter-spacing:0;font-size:.8rem">= ${dec(PARDATA)} decimal, loads in ONE pulse</span></div>`;
+  // trace
+  if(sTrace.length){
+    $('#srTrace').innerHTML=`<table class="tr"><thead><tr><th>pulse</th><th>serial in</th>
+      ${LBL.map(l=>`<th>${l}</th>`).join('')}<th>serial out</th><th>decimal</th></tr></thead><tbody>`
+      +sTrace.map(r=>`<tr><td>${r.n}</td><td>${r.in===null?'\u2014':r.in}</td>
+        ${r.c.map(v=>`<td class="${v?'b1':''}">${v}</td>`).join('')}
+        <td>${r.out===null?'\u2014':r.out}</td><td>${dec(r.c)}</td></tr>`).join('')+`</tbody></table>`;
+  } else $('#srTrace').innerHTML=`<p style="font-size:.88rem;color:var(--ink3);margin-top:10px">Pulse the clock and the trace builds here.</p>`;
+  const done=T.si?sIdx>=4:sLoaded;
+  $('#srMsg').className='feedback show '+(done?'good':'bad');
+  $('#srMsg').innerHTML=T.si
+    ? (sIdx>=4?`<b>Four pulses, four bits, done.</b> The register now holds <b>${sC.join('')}</b> = ${dec(sC)}.
+        ${T.so?'Keep pulsing and those bits start falling out of the serial output, one per pulse \u2014 four more pulses to empty it.':'Because this is a parallel-output type, you can read all four bits right now without any more pulses.'}`
+       :`<b>${sIdx} of 4 bits loaded.</b> Serial input needs <b>one clock pulse per bit</b>, so a 4-bit value costs 4 pulses. Next bit in is <b>${STREAM[sIdx]}</b>.`)
+    : (sLoaded?`<b>Loaded in a single pulse.</b> All four bits arrived together \u2014 that is what parallel input buys you.
+        ${T.so?'Now press the clock to shift them out one at a time.':'And because the output is parallel too, the data is already readable. No shifting at all.'}`
+       :`<b>Nothing loaded yet.</b> Press <b>Parallel load</b> to bring all four bits in on one pulse.`);
+  $('#srLoad').disabled=!T.pi;
+  $('#srClk').disabled=T.pi&&!T.si&&!sLoaded;
+}
+function srPulse(){
+  const T=TYPES[sType];
+  let inBit=null;
+  if(T.si){ if(sIdx>=STREAM.length){ clearInterval(sRun); return; } inBit=STREAM[sIdx]; sIdx++; }
+  else { if(!sLoaded) return; inBit=0; }
+  const r=shiftRight(sC,inBit); sC=r.cells; sOut=r.out;
+  sTrace.push({n:sTrace.length+1,in:T.si?inBit:null,c:sC.slice(),out:sOut});
+  if(sTrace.length>10) sTrace.shift();
+  srDraw([0,1,2,3]);
+}
+function srReset(){clearInterval(sRun);sRun=null;sC=[0,0,0,0];sIdx=0;sOut=null;sTrace=[];sLoaded=false;srDraw();}
+$('#srSel').addEventListener('click',e=>{const b=e.target.closest('.tab');if(b){sType=b.dataset.t;srReset();}});
+$('#srClk').addEventListener('click',srPulse);
+$('#srLoad').addEventListener('click',()=>{sC=PARDATA.slice();sLoaded=true;sOut=null;
+  sTrace.push({n:sTrace.length+1,in:null,c:sC.slice(),out:null});srDraw([0,1,2,3]);});
+$('#srReset').addEventListener('click',srReset);
+$('#srRun').addEventListener('click',()=>{
+  clearInterval(sRun); const T=TYPES[sType];
+  if(T.pi&&!sLoaded){sC=PARDATA.slice();sLoaded=true;sTrace.push({n:sTrace.length+1,in:null,c:sC.slice(),out:null});srDraw([0,1,2,3]);}
+  let k=0; sRun=setInterval(()=>{srPulse(); if(++k>=4)clearInterval(sRun);},800);
+});
+srDraw();
+
+/* ================= UNIVERSAL SHIFT REGISTER ================= */
+const UM=[{s:'00',n:'Hold',d:'Every flip-flop feeds itself. The clock ticks and nothing moves.'},
+          {s:'01',n:'Shift right',d:'Each bit moves one place right. The serial input fills the gap on the left. Dividing by two.'},
+          {s:'10',n:'Shift left',d:'Each bit moves one place left. The serial input fills the gap on the right. Multiplying by two.'},
+          {s:'11',n:'Parallel load',d:'Every flip-flop takes its own external data pin. Whole word in, one pulse.'}];
+let uMode=1, uC=[0,0,1,1], uIn=1, uPar=[1,0,1,0], uLast='';
+function uDraw(ch){
+  $('#uMode').innerHTML=UM.map((m,i)=>
+    `<button class="tab" data-i="${i}" aria-pressed="${i===uMode}">S1S0 = ${m.s} \u00b7 ${esc(m.n)}</button>`).join('');
+  $('#uRig').innerHTML=rigHTML(uC,{si:uMode===1||uMode===2,so:uMode===1||uMode===2,inVal:uIn,outVal:null,changed:ch||[]});
+  $('#uSerialV').textContent=uIn;
+  const m=UM[uMode];
+  $('#uMsg').innerHTML=`<b>${esc(m.n)} \u00b7 S1S0 = ${m.s}.</b> ${esc(m.d)}<br>
+    Register holds <b>${uC.join('')}</b> = ${dec(uC)} decimal.${uLast?` <span style="color:var(--ink2)">${uLast}</span>`:''}`;
+}
+$('#uMode').addEventListener('click',e=>{const b=e.target.closest('.tab');if(b){uMode=+b.dataset.i;uLast='';uDraw();}});
+$('#uSerial').addEventListener('click',()=>{uIn^=1;uDraw();});
+$('#uRand').addEventListener('click',()=>{uPar=uPar.map(()=>Math.random()<.5?1:0);uLast=`New parallel data waiting: ${uPar.join('')}. Switch to mode 11 and pulse to load it.`;uDraw();});
+$('#uReset').addEventListener('click',()=>{uC=[0,0,0,0];uLast='';uDraw();});
+$('#uClk').addEventListener('click',()=>{
+  const before=dec(uC);
+  if(uMode===0) uLast='Clock pulsed \u2014 nothing moved, because hold means hold.';
+  else if(uMode===1){ uC=shiftRight(uC,uIn).cells;
+    uLast=`Shifted right: ${before} \u2192 ${dec(uC)}${uIn===0&&before%2===0?' (halved \u2014 that is what a right shift does)':''}.`; }
+  else if(uMode===2){ uC=shiftLeft(uC,uIn).cells;
+    uLast=`Shifted left: ${before} \u2192 ${dec(uC)}${uIn===0?' (doubled \u2014 that is what a left shift does, until it overflows off the end)':''}.`; }
+  else { uC=uPar.slice(); uLast=`Parallel load: the whole word ${uPar.join('')} arrived on one pulse.`; }
+  uDraw([0,1,2,3]);
+});
+uDraw();
+
+/* ================= CPU REGISTER TOUR ================= */
+const REGS=[
+ {k:'PC', n:'Program Counter', d:'Holds the address of the next instruction. Your finger on the recipe.', w:'An address'},
+ {k:'MAR',n:'Memory Address Register', d:'Holds the address the CPU wants to read from or write to. Says WHERE.', w:'An address'},
+ {k:'MDR',n:'Memory Data Register', d:'Holds the data travelling to or from memory. Says WHAT. Also called the MBR.', w:'Data or an instruction'},
+ {k:'IR', n:'Instruction Register', d:'Holds the instruction currently being carried out, while it is being decoded.', w:'An instruction'},
+ {k:'ACC',n:'Accumulator', d:'Where arithmetic happens. Results land here before going anywhere else.', w:'A number'},
+ {k:'ALU',n:'Arithmetic Logic Unit', d:'Not a register \u2014 the circuit that adds, subtracts and compares. You built its adder in topic 3.', w:'Nothing; it computes'},
+ {k:'FLG',n:'Flags / Status Register', d:'One bit per fact about the last result: was it zero, was it negative, did it carry?', w:'Single-bit answers'},
+ {k:'GP', n:'General Purpose Registers', d:'Scratch space the program can use for anything \u2014 R1, R2 and friends.', w:'Whatever you like'}
+];
+$('#regTour').innerHTML=REGS.map((r,i)=>
+  `<button class="reg" data-i="${i}" style="text-align:left;cursor:pointer">
+     <div class="rn">${esc(r.k)}</div><div class="rv" style="font-size:.9rem">${esc(r.n)}</div>
+     <div class="rd">holds: ${esc(r.w)}</div></button>`).join('');
+$('#tourMsg').innerHTML='<b>Pick one.</b> Each of these is a row of flip-flops exactly like the register you built at the top of this page. Only the wiring differs.';
+$('#regTour').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b)return;
+  $$('#regTour .reg').forEach(x=>x.classList.remove('src'));b.classList.add('src');
+  const r=REGS[+b.dataset.i];
+  $('#tourMsg').innerHTML=`<b>${esc(r.k)} \u2014 ${esc(r.n)}.</b> ${esc(r.d)} It holds: ${esc(r.w)}.`;});
+
+/* ================= FETCH - DECODE - EXECUTE ================= */
+const MEM=[
+ {a:0,txt:'LOAD 5',  op:'LOAD', arg:5},
+ {a:1,txt:'ADD 3',   op:'ADD',  arg:3},
+ {a:2,txt:'STORE 7', op:'STORE',arg:7},
+ {a:3,txt:'SUB 2',   op:'SUB',  arg:2},
+ {a:4,txt:'HALT',    op:'HALT', arg:null},
+ {a:5,txt:'(free)',  op:null},{a:6,txt:'(free)',op:null},{a:7,txt:'(free)',op:null}
+];
+let F={pc:0,mar:'\u2014',mdr:'\u2014',ir:'\u2014',acc:0,flg:{Z:0,N:0},step:0,bus:null,src:null,dst:null,
+       mem:MEM.map(m=>({...m})),halted:false,run:null,wrote:null,msg:''};
+const PHASES=['Fetch','Decode','Execute'];
+const FSTEPS=[
+ {ph:0,src:'PC', dst:'MAR', do:f=>{f.mar=f.pc;f.bus=f.pc;},
+  m:f=>`<b>Fetch, step 1.</b> The program counter says the next instruction lives at address <b>${f.pc}</b>, so that address is copied onto the bus and into the MAR. The MAR always holds a <em>where</em>, never a <em>what</em>.`},
+ {ph:0,src:'MEM',dst:'MDR', do:f=>{f.mdr=f.mem[f.mar].txt;f.bus=f.mdr;},
+  m:f=>`<b>Fetch, step 2.</b> Memory is told to read the address in the MAR, and hands back <span class="mono">${f.mdr}</span>. It arrives in the MDR \u2014 the register that holds whatever is travelling to or from memory.`},
+ {ph:0,src:'MDR',dst:'IR',  do:f=>{f.ir=f.mdr;f.bus=f.ir;},
+  m:f=>`<b>Fetch, step 3.</b> The instruction moves from the MDR into the instruction register, where it will sit for the rest of this cycle while the control unit works on it.`},
+ {ph:0,src:'PC', dst:'PC',  do:f=>{f.pc++;f.bus=f.pc;},
+  m:f=>`<b>Fetch, step 4.</b> The PC is incremented to <b>${f.pc}</b> \u2014 right now, during the fetch, long before the current instruction has actually run. That is exactly why a jump works by overwriting the PC.`},
+ {ph:1,src:'IR', dst:null,  do:f=>{f.bus=null;},
+  m:f=>{const i=parse(f.ir);return `<b>Decode.</b> The control unit reads <span class="mono">${esc(f.ir)}</span> and splits it into an operation (<b>${i.op}</b>) and an operand (<b>${i.arg===null?'none':i.arg}</b>). Nothing moves on the bus during decode \u2014 it is pure interpretation.`;}},
+ {ph:2,src:null, dst:'ACC', do:f=>{const i=parse(f.ir);
+    if(i.op==='LOAD'){f.acc=i.arg;}
+    else if(i.op==='ADD'){f.acc+=i.arg;}
+    else if(i.op==='SUB'){f.acc-=i.arg;}
+    else if(i.op==='STORE'){f.mem[i.arg]={a:i.arg,txt:'Data: '+f.acc,op:null};f.wrote=i.arg;f.mar=i.arg;f.mdr=f.acc;}
+    else if(i.op==='HALT'){f.halted=true;}
+    f.flg.Z=f.acc===0?1:0; f.flg.N=f.acc<0?1:0; f.bus=f.acc;},
+  m:f=>{const i=parse(f.ir);
+    if(i.op==='LOAD') return `<b>Execute.</b> LOAD puts <b>${i.arg}</b> straight into the accumulator. The accumulator is where arithmetic lives \u2014 everything passes through it.`;
+    if(i.op==='ADD')  return `<b>Execute.</b> The ALU adds <b>${i.arg}</b> to the accumulator. That addition is happening in the ripple-carry adder you built in topic 3. Accumulator is now <b>${f.acc}</b>.`;
+    if(i.op==='SUB')  return `<b>Execute.</b> The ALU subtracts <b>${i.arg}</b>. Accumulator is now <b>${f.acc}</b>, and the flags have been updated to describe that result.`;
+    if(i.op==='STORE')return `<b>Execute.</b> STORE writes the accumulator (<b>${f.acc}</b>) out to memory address <b>${i.arg}</b> \u2014 note that this needs the MAR and MDR again, because every trip to memory does.`;
+    return `<b>Execute.</b> HALT. The cycle stops here. Without it the CPU would keep fetching whatever happened to be in the next memory location.`;}}
+];
+function parse(txt){const m=String(txt).match(/^(\w+)(?:\s+(\d+))?/);return m?{op:m[1],arg:m[2]===undefined?null:+m[2]}:{op:'?',arg:null};}
+function fdeDraw(){
+  const st=FSTEPS[F.step];
+  $('#fdePhase').innerHTML=PHASES.map((p,i)=>`<div class="ph ${st&&st.ph===i&&!F.halted?'on':''}">${p}</div>`).join('');
+  $('#fdeMem').innerHTML=F.mem.map(m=>`<div class="ml ${m.a===F.mar&&!F.halted?'cur':''} ${F.wrote===m.a?'wrote':''}">
+      <span>0x0${m.a}</span><span>${esc(m.txt)}</span></div>`).join('');
+  const rv={PC:F.pc,MAR:F.mar,MDR:F.mdr,IR:F.ir,ACC:F.acc,FLG:`Z=${F.flg.Z} N=${F.flg.N}`};
+  $('#fdeRegs').innerHTML=['PC','MAR','MDR','IR','ACC','FLG'].map(k=>{
+    const r=REGS.find(x=>x.k===k);
+    const cls=st&&st.src===k?'src':st&&st.dst===k?'dst':'';
+    return `<div class="reg ${cls}"><div class="rn">${k}</div><div class="rv">${esc(rv[k])}</div>
+      <div class="rd">${esc(r?r.n:'')}</div></div>`;}).join('');
+  $('#fdeBus').className='bus'+(F.bus!==null&&F.bus!==undefined?' live':'');
+  $('#fdeBus').innerHTML=`<span style="color:var(--ink2);font-size:.78rem">DATA BUS</span>
+    <span class="bv">${F.bus===null||F.bus===undefined?'idle':esc(F.bus)}</span>
+    <span style="color:var(--ink3);font-size:.78rem">${st&&!F.halted?`${st.src||'\u2014'} \u2192 ${st.dst||'\u2014'}`:''}</span>`;
+  $('#fdeMsg').className='feedback show '+(F.halted?'bad':'good');
+  $('#fdeMsg').innerHTML=F.halted
+    ? `<b>Halted.</b> The program ran five instructions and the accumulator finished on <b>${F.acc}</b>. Check memory address 0x07 \u2014 STORE left a value behind there. Press Reset to run it again.`
+    : (F.msg||'<b>Ready.</b> Press Next step and watch one transfer at a time. Every step is a real movement between real registers.');
+  $('#fdeStep').disabled=F.halted;
+}
+function fdeStep(){
+  if(F.halted){clearInterval(F.run);return;}
+  const st=FSTEPS[F.step];
+  st.do(F);
+  F.msg=st.m(F);
+  F.step=(F.step+1)%FSTEPS.length;
+  fdeDraw();
+}
+function fdeReset(){clearInterval(F.run);F.run=null;
+  F={pc:0,mar:'\u2014',mdr:'\u2014',ir:'\u2014',acc:0,flg:{Z:0,N:0},step:0,bus:null,
+     mem:MEM.map(m=>({...m})),halted:false,run:null,wrote:null,msg:''};fdeDraw();}
+$('#fdeStep').addEventListener('click',fdeStep);
+$('#fdeReset').addEventListener('click',fdeReset);
+$('#fdeStop').addEventListener('click',()=>{clearInterval(F.run);F.run=null;});
+$('#fdeRun').addEventListener('click',()=>{clearInterval(F.run);
+  const sp=[0,1600,1200,900,650,420][+$('#fdeSpeed').value];
+  F.run=setInterval(()=>{fdeStep();if(F.halted)clearInterval(F.run);},sp);});
+fdeReset();
+
+/* ================= LOGIC.LY BUILD GUIDE ================= */
+const BUILDS=[
+{t:'PIPO', sub:'Parallel In, Parallel Out \u2014 start here',
+ why:'The simplest of the four and the one every CPU register actually is. No shifting, no multiplexers, just four flip-flops that all listen to the same clock.',
+ parts:['4 \u00d7 D flip-flop','4 \u00d7 toggle switch (data)','1 \u00d7 push button (clock)','8 \u00d7 toggle switch (PRE\u2032/CLR\u2032)','4 \u00d7 LED','1 \u00d7 4-bit display'],
+ wires:[['P3 toggle','FF3 \u00b7 D'],['P2 toggle','FF2 \u00b7 D'],['P1 toggle','FF1 \u00b7 D'],['P0 toggle','FF0 \u00b7 D'],
+        ['Clock button','FF3, FF2, FF1, FF0 \u00b7 CLK (all four)'],
+        ['Toggle ON \u00d7 8','every PRE\u2032 and every CLR\u2032'],
+        ['FF3 \u00b7 Q','LED 3 and display input D'],['FF2 \u00b7 Q','LED 2 and display input C'],
+        ['FF1 \u00b7 Q','LED 1 and display input B'],['FF0 \u00b7 Q','LED 0 and display input A']],
+ steps:['Drop four <b>D flip-flops</b> in a row. Label them FF3, FF2, FF1, FF0 from left to right \u2014 FF3 is the most significant bit.',
+        'Put a <b>toggle switch</b> above each one and wire it to that flip-flop\u2019s <b>D</b> input.',
+        'Add one <b>push button</b> and run a wire from it to the <b>CLK</b> pin of all four flip-flops. One button, four wires. This is the single most important connection in the build.',
+        'Add eight toggle switches for the <b>PRE\u2032</b> and <b>CLR\u2032</b> pins. Switch every one of them <b>ON</b>.',
+        'Wire each <b>Q</b> output to an LED, and also to the 4-bit display: <b>Q0\u2192A, Q1\u2192B, Q2\u2192C, Q3\u2192D</b>.'],
+ check:'Set the switches to 1010 but <b>do not</b> press the clock. The LEDs should stay dark \u2014 that proves the flip-flops are ignoring their inputs until an edge arrives. Now press the clock once: all four LEDs change together and the display reads <b>10</b>. Change the switches again without clocking; nothing should move.',
+ fix:'LEDs change the instant you flip a switch? Your clock is wired wrong or a PRE\u2032/CLR\u2032 is low. Display reads a strange number while the LEDs look right? You have the display inputs reversed \u2014 A takes Q0, not Q3.'},
+
+{t:'SISO', sub:'Serial In, Serial Out \u2014 the chain',
+ why:'One wire in, one wire out. Change one thing from the PIPO build: instead of each flip-flop having its own data switch, each one takes its data from the flip-flop before it.',
+ parts:['4 \u00d7 D flip-flop','1 \u00d7 toggle switch (serial in)','1 \u00d7 push button (clock)','8 \u00d7 toggle switch (PRE\u2032/CLR\u2032)','5 \u00d7 LED','1 \u00d7 4-bit display'],
+ wires:[['Serial-in toggle','FF3 \u00b7 D'],['FF3 \u00b7 Q','FF2 \u00b7 D'],['FF2 \u00b7 Q','FF1 \u00b7 D'],['FF1 \u00b7 Q','FF0 \u00b7 D'],
+        ['FF0 \u00b7 Q','serial-out LED'],
+        ['Clock button','all four CLK pins'],['Toggle ON \u00d7 8','every PRE\u2032 and CLR\u2032'],
+        ['Q3 Q2 Q1 Q0','display D C B A respectively']],
+ steps:['Four D flip-flops in a row again, FF3 on the left through FF0 on the right.',
+        'One <b>toggle switch</b> on the far left, wired to <b>FF3 \u00b7 D</b>. This is your serial input \u2014 the only way data can get in.',
+        'Now chain them: <b>FF3 \u00b7 Q \u2192 FF2 \u00b7 D</b>, then <b>FF2 \u00b7 Q \u2192 FF1 \u00b7 D</b>, then <b>FF1 \u00b7 Q \u2192 FF0 \u00b7 D</b>. Three wires. That chain is the entire difference between this and a PIPO.',
+        'One push button to all four <b>CLK</b> pins.',
+        'All PRE\u2032 and CLR\u2032 to toggle switches, switched <b>ON</b>.',
+        'An LED on <b>FF0 \u00b7 Q</b> \u2014 that is the serial output, the bit falling off the end.',
+        'Add LEDs and the 4-bit display on all four Qs anyway, so you can watch the data crawl through.'],
+ check:'Shift in the value <b>1011</b> (decimal 11). Feed it <b>least significant bit first</b>, so the sequence you set on the input switch is <b>1, 1, 0, 1</b>, pulsing the clock after each one. After the fourth pulse the display should read <b>11</b>. Keep pulsing with the input at 0 and watch the display fall 11 \u2192 5 \u2192 2 \u2192 1 \u2192 0 as the bits drop off the end.',
+ fix:'Only one LED ever lights? You have wired the serial input to every D instead of chaining Q to D. Value comes out backwards? You fed it most significant bit first \u2014 the first bit in travels furthest, so it has to be the LSB.'},
+
+{t:'SIPO', sub:'Serial In, Parallel Out \u2014 you have already built it',
+ why:'This is the honest truth and worth knowing: a SIPO is a SISO with LEDs on every flip-flop instead of only the last one. Same circuit, different set of wires coming out of it.',
+ parts:['Your finished SISO circuit','4 \u00d7 LED (if not already fitted)','1 \u00d7 4-bit display'],
+ wires:[['FF3 \u00b7 Q','LED 3 + display D'],['FF2 \u00b7 Q','LED 2 + display C'],
+        ['FF1 \u00b7 Q','LED 1 + display B'],['FF0 \u00b7 Q','LED 0 + display A'],
+        ['everything else','unchanged from the SISO build']],
+ steps:['Open your SISO circuit and save it under a new name.',
+        'Make sure every <b>Q</b> output has an LED on it \u2014 not just the last one.',
+        'Wire all four Qs to the 4-bit display: <b>Q0\u2192A, Q1\u2192B, Q2\u2192C, Q3\u2192D</b>.',
+        'That is the whole build. You have not changed a single connection between the flip-flops.'],
+ check:'Shift in <b>1010</b> (LSB first, so the sequence is 0, 1, 0, 1) and watch the LEDs fill one at a time. After four pulses the display reads <b>10</b>. The point to notice: it took four pulses to get in, but you can read all four bits out simultaneously with no further pulses at all.',
+ fix:'If this works and the SISO did not, you have proved the fault was in the output wiring, not the chain. Go back and fix the SISO too.'},
+
+{t:'PISO', sub:'Parallel In, Serial Out \u2014 the hard one',
+ why:'Every flip-flop now has to choose between two possible sources: the parallel data pin during a load, or the previous flip-flop\u2019s Q during a shift. That choice is a 2-to-1 multiplexer, and you need one per bit. Build it bit by bit and test as you go.',
+ parts:['4 \u00d7 D flip-flop','8 \u00d7 AND gate','4 \u00d7 OR gate','1 \u00d7 NOT gate','4 \u00d7 toggle switch (parallel data)','1 \u00d7 toggle switch (LOAD/SHIFT)','1 \u00d7 push button (clock)','8 \u00d7 toggle switch (PRE\u2032/CLR\u2032)','5 \u00d7 LED','1 \u00d7 4-bit display'],
+ mux:[['FF3','LOAD, P3','LOAD\u2032, 0 (or a serial-in toggle)','FF3 \u00b7 D'],
+      ['FF2','LOAD, P2','LOAD\u2032, FF3 \u00b7 Q','FF2 \u00b7 D'],
+      ['FF1','LOAD, P1','LOAD\u2032, FF2 \u00b7 Q','FF1 \u00b7 D'],
+      ['FF0','LOAD, P0','LOAD\u2032, FF1 \u00b7 Q','FF0 \u00b7 D']],
+ steps:['Place the four D flip-flops (FF3 \u2026 FF0), the eight AND gates, the four OR gates and the one NOT gate. Leave room \u2014 this circuit gets busy.',
+        'Add one <b>toggle switch labelled LOAD</b>. Wire it directly into one input of every <b>load-path AND gate</b>, and also into the <b>NOT gate</b>. The NOT gate\u2019s output is <b>LOAD\u2032</b>, and that goes into one input of every <b>shift-path AND gate</b>.',
+        'Now do one bit at a time using the table above. For FF3: AND gate A takes LOAD and P3. AND gate B takes LOAD\u2032 and 0. Both AND outputs go into OR gate 3, and the OR output goes to <b>FF3 \u00b7 D</b>.',
+        'Repeat for FF2, FF1 and FF0 \u2014 identical pattern, but the shift path takes the <b>Q of the flip-flop to its left</b> instead of a 0.',
+        'One push button to all four <b>CLK</b> pins. All PRE\u2032 and CLR\u2032 to toggle switches, <b>ON</b>.',
+        'LED on <b>FF0 \u00b7 Q</b> for the serial output, plus LEDs and the display across all four Qs so you can see what is happening inside.'],
+ check:'Set the parallel switches to <b>1101</b> (decimal 13). Turn <b>LOAD on</b> and press the clock once \u2014 the display should jump straight to <b>13</b> in that single pulse. Now turn <b>LOAD off</b> and press the clock repeatedly. The serial-out LED should produce <b>1, 0, 1, 1</b> and the display should count down <b>13 \u2192 6 \u2192 3 \u2192 1 \u2192 0</b>. If you get that exact sequence, your multiplexers are correct.',
+ fix:'Nothing loads at all? The LOAD switch is probably only wired to one AND gate instead of all four. Loads fine but will not shift? Check the NOT gate \u2014 LOAD\u2032 has to reach all four shift-path ANDs. Data shifts the wrong way? You have wired each shift path to the flip-flop on the wrong side; FF2 takes FF3\u2019s Q, not FF1\u2019s.'}
+];
+let bI=0;
+function bDraw(){
+  $('#bSel').innerHTML=BUILDS.map((b,i)=>
+    `<button class="tab" data-i="${i}" aria-pressed="${i===bI}">Build ${i+1} \u00b7 ${esc(b.t)}</button>`).join('');
+  const b=BUILDS[bI];
+  $('#bBody').innerHTML=`
+    <h3 style="margin-bottom:2px">Build ${bI+1} \u00b7 ${esc(b.t)}</h3>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--hot);margin:0 0 10px">${esc(b.sub)}</p>
+    <p style="color:var(--ink2);font-size:.96rem">${esc(b.why)}</p>
+    <h4 style="margin:16px 0 4px;font-size:.92rem">What to drag onto the canvas</h4>
+    <div class="parts">${b.parts.map(p=>`<span class="part">${esc(p)}</span>`).join('')}</div>
+    ${b.wires?`<h4 style="margin:6px 0 0;font-size:.92rem">Wiring list \u2014 every connection</h4>
+      <table class="wire"><thead><tr><th>From</th><th>To</th></tr></thead><tbody>
+      ${b.wires.map(r=>`<tr><td class="m">${esc(r[0])}</td><td class="m">${esc(r[1])}</td></tr>`).join('')}
+      </tbody></table>`:''}
+    ${b.mux?`<h4 style="margin:6px 0 0;font-size:.92rem">Multiplexer wiring \u2014 one row per bit, identical pattern</h4>
+      <table class="wire"><thead><tr><th>Flip-flop</th><th>AND gate A (load path)</th><th>AND gate B (shift path)</th><th>OR output goes to</th></tr></thead><tbody>
+      ${b.mux.map(r=>`<tr><td class="m"><b>${esc(r[0])}</b></td><td class="m">${esc(r[1])}</td><td class="m">${esc(r[2])}</td><td class="m">${esc(r[3])}</td></tr>`).join('')}
+      </tbody></table>`:''}
+    <h4 style="margin:16px 0 8px;font-size:.92rem">Step by step</h4>
+    <ol class="steps">${b.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+    <div class="chk"><b>Test it works</b><br>${b.check}</div>
+    <div class="note warn" style="margin-bottom:0"><b>If it misbehaves.</b> ${b.fix}</div>`;
+}
+$('#bSel').addEventListener('click',e=>{const b=e.target.closest('.tab');if(b){bI=+b.dataset.i;bDraw();}});
+bDraw();
+
+/* ================= UNIT TEST ================= */
+const PARTS={A:'Registers, serial & parallel',B:'The four types',C:'Shifting & counting',D:'CPU registers',E:'Fetch–decode–execute'};
+const Q=[
+{p:'A',q:'What is a register built from?',opts:['Logic gates only','Flip-flops, one per bit','Capacitors','Multiplexers'],a:1,
+ why:'One flip-flop per bit. An 8-bit register is eight flip-flops sharing a clock \u2014 nothing more exotic than that.'},
+{p:'A',q:'How many flip-flops are in a 16-bit register?',opts:['4','8','16','32'],a:2,
+ why:'One per bit, always. The number of bits IS the number of flip-flops.'},
+{p:'A',q:'What does "parallel" mean when describing register data transfer?',opts:['Data moves one bit at a time','All bits move simultaneously on separate wires','Data moves in both directions','Two registers work at once'],a:1,
+ why:'Parallel means one wire per bit and everything arriving together. Fast, but expensive in wires \u2014 an 8-bit parallel bus needs 8 wires.'},
+{p:'A',q:'What is the main advantage of serial data transfer?',opts:['It is faster','It needs far fewer wires','It uses less memory','It never has errors'],a:1,
+ why:'One data wire instead of many. That is why cables are serial \u2014 a 64-wire USB cable would be absurd, so the data is sent one bit at a time and converted back at each end.'},
+{p:'A',q:'What is the main disadvantage of serial data transfer?',opts:['It needs more wires','It takes more clock cycles to move the same data','It cannot store data','It only works over short distances'],a:1,
+ why:'Moving 8 bits serially takes 8 clock pulses; in parallel it takes 1. You trade time for wires, and which trade is right depends on how far the data has to travel.'},
+{p:'A',q:'Which is the fastest form of memory in a computer?',opts:['Cache','RAM','Registers','SSD'],a:2,
+ why:'Registers sit inside the processor itself, so there is no distance to travel. This connects straight back to the storage hierarchy in topic 1.'},
+{p:'A',q:'How many clock pulses are needed to load 8 bits into a register serially?',opts:['1','2','8','16'],a:2,
+ why:'One pulse per bit with serial input. Count the bits and you have the answer \u2014 this exact calculation appears in exams constantly.'},
+{p:'A',q:'How many clock pulses are needed to load 8 bits into a register in parallel?',opts:['1','2','8','16'],a:0,
+ why:'All bits arrive on separate wires at the same instant, so one pulse captures the lot. That speed is exactly why CPU registers are parallel.'},
+{p:'B',q:'What does SIPO stand for?',opts:['Serial In, Parallel Out','Single In, Parallel Out','Serial Input, Programmed Output','Simultaneous In, Parallel Out'],a:0,
+ why:'Read the letters in order: the first two describe how data gets in, the last two how it gets out. Once you spot that, none of the four names need memorising.'},
+{p:'B',q:'Which register type is used at the RECEIVING end of a serial cable, to rebuild a byte?',opts:['SISO','SIPO','PISO','PIPO'],a:1,
+ why:'Bits arrive one at a time down the wire (serial in) and the computer needs the whole byte at once (parallel out). That is a SIPO, and it is inside your keyboard receiver.'},
+{p:'B',q:'Which register type is used at the SENDING end, to put a byte onto a single wire?',opts:['SISO','SIPO','PISO','PIPO'],a:2,
+ why:'The byte is grabbed all at once from the CPU (parallel in) and pushed out one bit per clock (serial out). PISO and SIPO are the pair that make serial cables possible.'},
+{p:'B',q:'Which register type involves no shifting at all?',opts:['SISO','SIPO','PISO','PIPO'],a:3,
+ why:'Data goes in on parallel wires and comes out on parallel wires, so nothing ever has to move between flip-flops. It is just four D flip-flops sharing a clock \u2014 and it is what every CPU register is.'},
+{p:'B',q:'Which register type is the fastest for moving a whole word?',opts:['SISO','SIPO','PISO','PIPO'],a:3,
+ why:'One pulse in, immediately readable out. No queueing at either end.'},
+{p:'B',q:'A SISO register holds 4 bits. How many clock pulses after a bit enters does it appear at the serial output?',opts:['1','2','4','8'],a:2,
+ why:'It has to travel through all four stages, one stage per pulse. This is why a SISO is sometimes called a delay line \u2014 delaying a signal is its actual job.'},
+{p:'B',q:'Which of the four types is hardest to build, and why?',opts:['SISO, because of the chain','PIPO, because of the parallel wires','PISO, because each bit needs a multiplexer to choose between loading and shifting','SIPO, because of the extra LEDs'],a:2,
+ why:'Every flip-flop must select between its parallel data pin and the previous Q. That choice needs a 2-to-1 multiplexer per bit \u2014 two AND gates and an OR gate each, plus one shared inverter for the control line.'},
+{p:'B',q:'In a PISO register, what does the LOAD/SHIFT control line do?',opts:['Turns the clock on and off','Selects whether each flip-flop takes its parallel input or the previous flip-flop\u2019s output','Resets the register','Chooses the shift direction'],a:1,
+ why:'It is the select line of every multiplexer at once. High means load from the parallel pins; low means take data from the neighbour and shift.'},
+{p:'B',q:'When shifting a value into a SISO register, which bit should you feed in first?',opts:['The most significant bit','The least significant bit','Either, it makes no difference','The middle bit'],a:1,
+ why:'The first bit in travels furthest through the chain, ending up at the far end. So for the value to land the right way round, the least significant bit has to go first.'},
+{p:'C',q:'What happens to a binary value when you shift it one place to the LEFT?',opts:['It is halved','It is doubled','It is inverted','Nothing changes'],a:1,
+ why:'Each bit moves to a position worth twice as much. 0011 (3) becomes 0110 (6). Processors use this constantly because shifting is far cheaper than real multiplication.'},
+{p:'C',q:'What happens when you shift a binary value one place to the RIGHT?',opts:['It is doubled','It is halved (whole-number division by 2)','It is squared','It becomes negative'],a:1,
+ why:'Each bit drops to a position worth half as much. 1100 (12) becomes 0110 (6). Anything falling off the end is simply lost, which is why it is integer division.'},
+{p:'C',q:'A universal shift register has two control lines S1 and S0. How many modes can it have?',opts:['2','3','4','8'],a:2,
+ why:'Two control lines give 2\u00b2 = 4 combinations: hold, shift right, shift left and parallel load. Same 2\u207f rule you met with multiplexer select lines.'},
+{p:'C',q:'What component sits in front of each flip-flop in a universal shift register?',opts:['An adder','A multiplexer','An encoder','A comparator'],a:1,
+ why:'Each flip-flop must choose between four possible sources, so it needs a 4-to-1 multiplexer with S1 and S0 as the select lines. The MUX you built in topic 3, finally doing a real job.'},
+{p:'C',q:'What does "bidirectional" mean for a shift register?',opts:['It has two clocks','It can shift data both left and right','It has two outputs','It stores two values'],a:1,
+ why:'Direction is controllable rather than fixed. A universal shift register is bidirectional and can also parallel-load, which is what makes it universal.'},
+{p:'C',q:'Four T flip-flops chained as a ripple counter can count from 0 up to:',opts:['4','8','15','16'],a:2,
+ why:'Four bits give 16 distinct states, numbered 0 to 15. Read the question carefully \u2014 "how many states" and "highest value" have different answers.'},
+{p:'C',q:'Why is a ripple counter called asynchronous?',opts:['It has no clock','Each flip-flop is clocked by the previous one rather than by a shared clock','It counts backwards','It uses D flip-flops'],a:1,
+ why:'Synchronous means everything shares one clock. In a ripple counter each stage clocks the next, so changes arrive at slightly different times and the outputs are briefly wrong while the change propagates.'},
+{p:'C',q:'A shift register used to delay a signal by a fixed number of clock cycles is being used as a:',opts:['Counter','Delay line','Decoder','Comparator'],a:1,
+ why:'A 4-stage SISO delays whatever you feed it by exactly four clock pulses. That predictable delay is genuinely useful in signal processing and communications.'},
+{p:'D',q:'Which register holds the address of the NEXT instruction to be executed?',opts:['Instruction Register','Program Counter','Accumulator','Memory Data Register'],a:1,
+ why:'The PC is the CPU\u2019s finger on the line of the recipe. A jump instruction works simply by overwriting it with a different address.'},
+{p:'D',q:'Which register holds the instruction currently being decoded and executed?',opts:['Program Counter','Instruction Register','Accumulator','Memory Address Register'],a:1,
+ why:'The IR holds the instruction still while the control unit picks it apart into an operation and an operand.'},
+{p:'D',q:'The Memory Address Register (MAR) holds:',opts:['The data being read','The address being accessed','The current instruction','The result of a calculation'],a:1,
+ why:'MAR holds WHERE, MDR holds WHAT. If you only remember one sentence about these two, make it that one.'},
+{p:'D',q:'The Memory Data Register (MDR) holds:',opts:['The address being accessed','Data travelling to or from memory','The next instruction address','Status flags'],a:1,
+ why:'Everything moving between the CPU and memory passes through the MDR in both directions. Some textbooks call it the Memory Buffer Register \u2014 same component, two names.'},
+{p:'D',q:'Where do the results of arithmetic operations normally end up?',opts:['The Program Counter','The Accumulator','The MAR','The Instruction Register'],a:1,
+ why:'The accumulator is the CPU\u2019s working surface. Values are loaded into it, operated on, and then stored back out to memory from it.'},
+{p:'D',q:'What does the status or flags register store?',opts:['The next instruction','Single-bit facts about the last result, such as whether it was zero or negative','Memory addresses','General purpose data'],a:1,
+ why:'One bit per fact: zero flag, negative flag, carry flag. Conditional branches read these flags to decide whether to jump \u2014 it is how a program makes a decision.'},
+{p:'D',q:'The ALU is:',opts:['A register that stores results','The circuit that performs arithmetic and logic operations','A type of memory','The clock generator'],a:1,
+ why:'Not a register at all \u2014 a combinational circuit. Its adder is the ripple-carry adder you built in topic 3, which means you have already built part of a CPU.'},
+{p:'D',q:'General purpose registers are so called because they:',opts:['Are the largest registers','Can hold either data or addresses, as the program needs','Are used by the operating system only','Never change'],a:1,
+ why:'Unlike the PC or the IR, they have no fixed job. The program decides what goes in them, which is why modern CPUs have many of them rather than one accumulator.'},
+{p:'E',q:'What are the three phases of the machine cycle, in order?',opts:['Decode, fetch, execute','Fetch, decode, execute','Execute, fetch, decode','Fetch, execute, decode'],a:1,
+ why:'Get the instruction, work out what it means, do it. Then repeat, several billion times a second, for as long as the machine is switched on.'},
+{p:'E',q:'During the FETCH phase, what is the first transfer that happens?',opts:['MDR to IR','PC to MAR','IR to the control unit','ACC to memory'],a:1,
+ why:'The CPU needs to tell memory which address it wants, and that address is sitting in the PC. So PC to MAR is always step one.'},
+{p:'E',q:'At what point is the program counter incremented?',opts:['At the very end of the execute phase','During the fetch phase, before the instruction has run','Only when a jump occurs','It is never incremented automatically'],a:1,
+ why:'By the time the instruction is executing, the PC already points at the next one. That is precisely why a jump instruction works by overwriting the PC rather than by adding to it.'},
+{p:'E',q:'The instruction travels from memory into which register first?',opts:['IR','MDR','ACC','PC'],a:1,
+ why:'Everything coming out of memory lands in the MDR, because that is the register wired to the memory bus. From there it is copied into the IR.'},
+{p:'E',q:'What happens during the DECODE phase?',opts:['Data is fetched from memory','The control unit splits the instruction into an operation and an operand','The result is stored','The PC is incremented'],a:1,
+ why:'Nothing moves on the data bus during decode. The control unit is simply interpreting the bit pattern sitting in the IR and setting up the right paths for the execute phase.'},
+{p:'E',q:'A STORE instruction writes the accumulator to memory. Which registers does that need?',opts:['Only the accumulator','MAR for the address and MDR for the data','Only the PC','Only the IR'],a:1,
+ why:'Every trip to memory needs both: the MAR to say where, and the MDR to carry what. Reads and writes use the same pair, just in opposite directions.'},
+{p:'E',q:'Why does a CPU need a HALT instruction?',opts:['To save power','Because without it the CPU would keep fetching whatever bytes came next and try to run them','To clear the registers','To reset the program counter'],a:1,
+ why:'The cycle never stops on its own. The PC just keeps incrementing, so without a HALT the processor happily reads past the end of your program and executes whatever garbage it finds.'}
+];
+let T={order:[],i:0,answers:{}};
+const grade=p=>p>=85?'A':p>=75?'B':p>=65?'C':p>=50?'D':'F';
+function testStart(list){
+  T={order:list||Q.map((_,i)=>i),i:0,answers:{}};
+  $('#testIntro').classList.add('hide');$('#testDone').classList.add('hide');$('#reviewBox').innerHTML='';
+  $('#testRun').classList.remove('hide');testRender();
+}
+function testRender(){
+  const q=Q[T.order[T.i]];
+  $('#testPos').textContent=`${T.i+1} / ${T.order.length}`;
+  $('#testMeter').style.width=(T.i/T.order.length*100)+'%';
+  $('#testScore').textContent=`${Object.entries(T.answers).filter(([k,v])=>v===Q[k].a).length} correct`;
+  $('#qcard').innerHTML=`<span class="mono" style="font-size:.78rem;color:var(--ink3)">Question ${T.i+1}</span>
+    <span style="font-size:.72rem;background:rgba(194,118,42,.14);color:var(--hot);border-radius:5px;padding:2px 8px;margin-left:8px">Part ${q.p} \u00b7 ${PARTS[q.p]}</span>
+    <p style="font-size:1.12rem;font-family:'Space Grotesk',sans-serif;margin:10px 0 6px;line-height:1.35">${esc(q.q)}</p>
+    <div style="display:grid;gap:9px;margin-top:16px">${q.opts.map((o,i)=>
+      `<button class="opt" data-i="${i}" style="text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:12px 15px;cursor:pointer;display:flex;gap:11px;font-size:.97rem">
+       <span class="mono" style="font-weight:700;color:var(--ink3)">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>
+    <div class="feedback" id="qfb"></div>`;
+}
+$('#qcard').addEventListener('click',e=>{
+  const b=e.target.closest('.opt'); if(!b||b.disabled)return;
+  const idx=T.order[T.i],q=Q[idx],pick=+b.dataset.i;
+  T.answers[idx]=pick;
+  $$('#qcard .opt').forEach((o,i)=>{o.disabled=true;
+    if(i===q.a){o.style.background='rgba(17,141,119,.12)';o.style.borderColor='var(--mint)';}
+    else if(i===pick){o.style.background='rgba(224,75,47,.1)';o.style.borderColor='var(--red)';}});
+  const f=$('#qfb'),last=T.i===T.order.length-1;
+  f.className='feedback show '+(pick===q.a?'good':'bad');
+  f.innerHTML=`<b>${pick===q.a?'Correct.':'The answer is '+'ABCD'[q.a]+'.'}</b> ${esc(q.why)}
+    <div class="btnrow"><button class="btn accent" id="qNext">${last?'See my results':'Next question'}</button></div>`;
+  $('#qNext').addEventListener('click',()=>{if(last)return testFinish();T.i++;testRender();$('#qcard').scrollIntoView({block:'nearest'});});
+});
+function testFinish(){
+  $('#testRun').classList.add('hide');$('#testDone').classList.remove('hide');
+  const asked=T.order.length,right=T.order.filter(i=>T.answers[i]===Q[i].a).length,pct=Math.round(right/asked*100);
+  $('#doneScore').textContent=`${right}/${asked}`;
+  $('#doneGrade').textContent=`${pct}%  \u00b7  grade ${grade(pct)}`;
+  $('#doneMsg').textContent=pct>=85?'You can explain how an instruction gets from memory into the CPU and back out again. That is the whole point of the unit and you have it.'
+    :pct>=65?'Good, with gaps. Check your weakest part below and go replay that section before next class.'
+    :'Go back and step the fetch\u2013execute cycle a few times, then pulse each of the four register types. This topic makes far more sense clicked than read.';
+  $('#doneBreak').innerHTML=Object.keys(PARTS).map(p=>{
+    const ids=T.order.filter(i=>Q[i].p===p); if(!ids.length)return '';
+    const ok=ids.filter(i=>T.answers[i]===Q[i].a).length;
+    return `<div style="display:flex;align-items:center;gap:12px;font-size:.92rem">
+      <span style="flex:1 1 auto"><b>Part ${p}</b> \u00b7 ${PARTS[p]}</span>
+      <span style="width:110px;height:8px;background:var(--lowbg);border-radius:999px;overflow:hidden">
+        <i style="display:block;height:100%;background:var(--mint);width:${ok/ids.length*100}%"></i></span>
+      <span class="mono" style="font-size:.84rem;color:var(--ink2);min-width:3.6em;text-align:right">${ok}/${ids.length}</span></div>`;
+  }).join('');
+  const missed=T.order.filter(i=>T.answers[i]!==Q[i].a);
+  $('#retryWrong').classList.toggle('hide',!missed.length);
+  $('#retryWrong').onclick=()=>testStart(missed);
+  $('#testDone').scrollIntoView({block:'start'});
+}
+$('#testStart').addEventListener('click',()=>testStart());
+$('#testQuit').addEventListener('click',testFinish);
+$('#retryAll').addEventListener('click',()=>testStart());
+$('#reviewAll').addEventListener('click',()=>{
+  $('#reviewBox').innerHTML=`<h3 style="margin:30px 0 14px">Every question, with the reasoning</h3>`+
+    Q.map((q,i)=>`<div class="panel"><span class="mono" style="font-size:.78rem;color:var(--ink3)">Q${i+1}</span>
+      <span style="font-size:.72rem;background:rgba(194,118,42,.14);color:var(--hot);border-radius:5px;padding:2px 8px;margin-left:8px">Part ${q.p}</span>
+      <p style="font-family:'Space Grotesk',sans-serif;font-size:1rem;margin:8px 0 0">${esc(q.q)}</p>
+      <p style="margin:6px 0 0"><b>${'ABCD'[q.a]}.</b> ${esc(q.opts[q.a])}</p>
+      <p style="margin:6px 0 0;color:var(--ink2);font-size:.94rem">${esc(q.why)}</p></div>`).join('');
+  $('#reviewBox').scrollIntoView({block:'start'});
+});
+</script>
+</body>
+</html>
