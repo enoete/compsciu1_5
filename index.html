@@ -125,13 +125,21 @@ table.tr tr:last-child td{box-shadow:inset 0 -3px 0 var(--hot)}
 
 /* ---- CPU ---- */
 .cpu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.reg{border:2px solid var(--line);background:var(--board);border-radius:11px;padding:11px 13px;transition:.25s}
-.reg .rn{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink3);font-weight:700}
+.reg{border:2px solid var(--line);border-left-width:5px;border-left-color:var(--gc,var(--line));background:var(--board);border-radius:11px;padding:11px 13px;transition:.25s}
+.reg .rn{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink3);font-weight:700;display:flex;align-items:center;gap:6px}
 .reg .rv{font-family:"JetBrains Mono",monospace;font-size:1.1rem;font-weight:700;margin-top:3px}
 .reg .rd{font-size:.72rem;color:var(--ink3);margin-top:3px;line-height:1.3}
 .reg .rrole{font-size:.73rem;color:#8A5B08;margin-top:6px;font-style:italic;line-height:1.3}
 .reg.src{border-color:var(--cyan);background:rgba(14,124,155,.08);box-shadow:0 0 0 4px rgba(14,124,155,.14)}
 .reg.dst{border-color:var(--hot);background:#FFF6E6;box-shadow:0 0 0 4px rgba(194,118,42,.16)}
+.reggroup{margin-bottom:20px}
+.reggroup:last-child{margin-bottom:0}
+.reggroup-h{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+.reggroup-h .dot{width:11px;height:11px;border-radius:3px;background:var(--gc);flex:none;position:relative;top:1px}
+.reggroup-h .gt{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:.84rem;color:var(--ink)}
+.reggroup-h .gs{font-size:.76rem;color:var(--ink3)}
+.notregtag{font-family:"Space Grotesk",sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--ink3);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
 .bus{margin:14px 0;border:2px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--paper);
   font-family:"JetBrains Mono",monospace;font-size:.9rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .bus.live{border-color:var(--hot);background:#FFF6E6}
@@ -387,7 +395,9 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
   <h2>The registers with names</h2>
   <p class="sub">Inside a processor there are registers doing specific jobs, and each one has a name you are expected
   to know. They are not special hardware — every one of them is a row of flip-flops exactly like the one you just
-  built. What makes them different is what they are wired to.</p>
+  built. What makes them different is what they are wired to — and once you notice that every single one of them
+  holds exactly one <em>kind</em> of thing, the list below stops being eight names to memorise and becomes a handful
+  of ideas, each with one or two registers attached. They're grouped and colour-coded by that below.</p>
 
   <div class="analogy">
     <h4>A chef working from a recipe book</h4>
@@ -400,7 +410,7 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
   </div>
 
   <div class="panel">
-    <div class="cpu" id="regTour"></div>
+    <div id="regTour"></div>
     <p style="font-size:.88rem;color:var(--ink3);margin:14px 0 0">Click any register to see what it does and where it
     appears in the cycle below.</p>
     <div class="feedback show good" id="tourMsg" style="margin-top:14px"></div>
@@ -1060,30 +1070,47 @@ $('#rippleReset').addEventListener('click',rippleReset);
 rippleReset();
 
 /* ================= CPU REGISTER TOUR ================= */
+const REGGROUPS=[
+ {g:'where', label:'Holds an address',             sub:'WHERE to look',          color:'var(--violet)'},
+ {g:'what',  label:'Holds data or an instruction',  sub:'WHAT came back',         color:'var(--hot)'},
+ {g:'work',  label:'Where the work happens',        sub:'computing a result',     color:'var(--red)'},
+ {g:'notes', label:'Bookkeeping about the result',  sub:'one bit per question',   color:'var(--amber)'},
+ {g:'spare', label:'Flexible, general-purpose',     sub:'whatever the program needs', color:'var(--mint)'}
+];
 const REGS=[
- {k:'PC', n:'Program Counter', d:'Holds the address of the next instruction. Your finger on the recipe.', w:'An address',
+ {k:'PC', g:'where',n:'Program Counter', d:'Holds the address of the next instruction. Your finger on the recipe.', w:'An address',
   role:'Your finger on the recipe \u2014 always pointing at the next line.'},
- {k:'MAR',n:'Memory Address Register', d:'Holds the address the CPU wants to read from or write to. Says WHERE.', w:'An address',
+ {k:'MAR',g:'where',n:'Memory Address Register', d:'Holds the address the CPU wants to read from or write to. Says WHERE.', w:'An address',
   role:'The shelf you just noted down \u2014 WHERE to look.'},
- {k:'MDR',n:'Memory Data Register', d:'Holds the data travelling to or from memory. Says WHAT. Also called the MBR.', w:'Data or an instruction',
+ {k:'MDR',g:'what', n:'Memory Data Register', d:'Holds the data travelling to or from memory. Says WHAT. Also called the MBR.', w:'Data or an instruction',
   role:'What came back, sitting in the bowl by the door \u2014 WHAT you got.'},
- {k:'IR', n:'Instruction Register', d:'Holds the instruction currently being carried out, while it is being decoded.', w:'An instruction',
+ {k:'IR', g:'what', n:'Instruction Register', d:'Holds the instruction currently being carried out, while it is being decoded.', w:'An instruction',
   role:'The line you read out loud and are now holding in your head.'},
- {k:'ACC',n:'Accumulator', d:'Where arithmetic happens. Results land here before going anywhere else.', w:'A number',
+ {k:'ACC',g:'work', n:'Accumulator', d:'Where arithmetic happens. Results land here before going anywhere else.', w:'A number',
   role:'The ingredient on the chopping board \u2014 where the work actually happens.'},
- {k:'ALU',n:'Arithmetic Logic Unit', d:'Not a register \u2014 the circuit that adds, subtracts and compares. You built its adder in topic 3.', w:'Nothing; it computes',
+ {k:'ALU',g:'work', n:'Arithmetic Logic Unit', notReg:true, d:'Not a register \u2014 the circuit that adds, subtracts and compares. You built its adder in topic 3.', w:'Nothing; it computes',
   role:'Not a container at all \u2014 the chef\u2019s hands, actually doing the chopping.'},
- {k:'FLG',n:'Flags / Status Register', d:'One bit per fact about the last result: was it zero, was it negative, did it carry?', w:'Single-bit answers',
+ {k:'FLG',g:'notes',n:'Flags / Status Register', d:'One bit per fact about the last result: was it zero, was it negative, did it carry?', w:'Single-bit answers',
   role:'The little notes the chef jots down: ran out? went short?'},
- {k:'GP', n:'General Purpose Registers', d:'Scratch space the program can use for anything \u2014 R1, R2 and friends.', w:'Whatever you like',
+ {k:'GP', g:'spare',n:'General Purpose Registers', d:'Scratch space the program can use for anything \u2014 R1, R2 and friends.', w:'Whatever you like',
   role:'The spare bowls on the counter \u2014 for whatever you need right now.'}
 ];
-$('#regTour').innerHTML=REGS.map((r,i)=>
-  `<button class="reg" data-i="${i}" style="text-align:left;cursor:pointer">
-     <div class="rn">${esc(r.k)}</div><div class="rv" style="font-size:.9rem">${esc(r.n)}</div>
+function regCard(r,i){
+  return `<button class="reg" data-i="${i}" style="text-align:left;cursor:pointer">
+     <div class="rn">${esc(r.k)}${r.notReg?'<span class="notregtag">not a register</span>':''}</div>
+     <div class="rv" style="font-size:.9rem">${esc(r.n)}</div>
      <div class="rrole">\u201c${esc(r.role)}\u201d</div>
-     <div class="rd">holds: ${esc(r.w)}</div></button>`).join('');
-$('#tourMsg').innerHTML='<b>Pick one.</b> Each of these is a row of flip-flops exactly like the register you built at the top of this page. Only the wiring differs.';
+     <div class="rd">holds: ${esc(r.w)}</div></button>`;
+}
+$('#regTour').innerHTML=REGGROUPS.map(grp=>{
+  const members=REGS.map((r,i)=>({r,i})).filter(x=>x.r.g===grp.g);
+  if(!members.length) return '';
+  return `<div class="reggroup" style="--gc:${grp.color}">
+    <div class="reggroup-h"><span class="dot"></span><span class="gt">${esc(grp.label)}</span><span class="gs">\u2014 ${esc(grp.sub)}</span></div>
+    <div class="cpu">${members.map(x=>regCard(x.r,x.i)).join('')}</div>
+  </div>`;
+}).join('');
+$('#tourMsg').innerHTML='<b>Pick one.</b> Each of these is a row of flip-flops exactly like the register you built at the top of this page. Only the wiring differs \u2014 and the colour tells you which of the five groups it belongs to.';
 $('#regTour').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b)return;
   $$('#regTour .reg').forEach(x=>x.classList.remove('src'));b.classList.add('src');
   const r=REGS[+b.dataset.i];
