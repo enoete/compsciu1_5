@@ -7,18 +7,18 @@
 
 <!-- ===== lesson manifest ===== -->
 <meta property="og:title" content="Registers: From Four Flip-Flops to a Working CPU">
-<meta property="og:description" content="SISO, SIPO, PISO and PIPO shift registers, the named registers inside a processor, and a fetch-decode-execute cycle you can step through one bus transfer at a time.">
+<meta property="og:description" content="SISO, SIPO, PISO and PIPO shift registers, synchronous and asynchronous counters, the named registers inside a processor, and a fetch-decode-execute cycle you can step through one bus transfer at a time.">
 <meta property="og:site_name" content="CS Unit 1 · CFBC">
-<meta name="description" content="Shift registers, serial and parallel data, universal shift registers, CPU registers (PC, MAR, MDR, IR, ACC), the fetch-decode-execute cycle, and four fully wired Logic.ly builds.">
+<meta name="description" content="Shift registers, serial and parallel data, universal shift registers, ripple and synchronous counters, CPU registers (PC, MAR, MDR, IR, ACC), the fetch-decode-execute cycle, and four fully wired Logic.ly builds.">
 <meta name="theme-color" content="#C2762A">
-<meta name="lesson:duration"   content="85 min">
+<meta name="lesson:duration"   content="100 min">
 <meta name="lesson:difficulty" content="Core">
-<meta name="lesson:objectives" content="10">
-<meta name="lesson:questions"  content="40">
-<meta name="lesson:sections"   content="9">
-<meta name="lesson:topics"     content="SISO,SIPO,PISO,PIPO,Shift registers,Universal shift register,Program counter,MAR,MDR,Instruction register,Accumulator,Fetch-decode-execute">
-<meta name="lesson:activities" content="Shift bench,Four-type animator,Register wiring diagrams,Shift trace table,Universal register,CPU register tour,Fetch-execute stepper,Four Logic.ly builds,Unit test">
-<meta name="lesson:updated"    content="2026-09-29">
+<meta name="lesson:objectives" content="11">
+<meta name="lesson:questions"  content="43">
+<meta name="lesson:sections"   content="10">
+<meta name="lesson:topics"     content="SISO,SIPO,PISO,PIPO,Shift registers,Universal shift register,Ripple counter,Synchronous counter,Program counter,MAR,MDR,Instruction register,Accumulator,Fetch-decode-execute">
+<meta name="lesson:activities" content="Shift bench,Four-type animator,Register wiring diagrams,Shift trace table,Universal register,Ripple counter stepper,Synchronous counter,CPU register tour,Fetch-execute stepper,Four Logic.ly builds,Unit test">
+<meta name="lesson:updated"    content="2026-10-02">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -168,6 +168,7 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
   <a href="#why">Why serial</a>
   <a href="#four">SISO SIPO PISO PIPO</a>
   <a href="#universal">Universal register</a>
+  <a href="#counters">Counters</a>
   <a href="#cpu">Inside the CPU</a>
   <a href="#fde">Fetch–execute</a>
   <a href="#build">Logic.ly builds</a>
@@ -315,6 +316,73 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
   turns it into three left shifts and nobody mentions it.</div>
 </div></section>
 
+<section id="counters"><div class="wrap">
+  <h2>Counters: a register that counts itself</h2>
+  <p class="sub">Same four flip-flops one more time, wired a third way. Nothing shifts here — every clock pulse the
+  whole register just adds one to itself. There are two ways to build that, and the gap between them is one of the
+  most commonly examined ideas in this part of the syllabus.</p>
+
+  <div class="analogy">
+    <h4>The odometer in a car</h4>
+    <p>Watch the mile counter on an old mechanical odometer. The units wheel ticks over on every mile. Only when it
+    completes a full turn — rolling from 9 back to 0 — does it nudge the tens wheel one notch. The tens wheel never
+    watches the car; it only watches the units wheel sitting next to it. That is exactly how a <b>ripple counter</b>
+    works, and it is exactly why it has a weakness too: the tens wheel cannot move until the units wheel has finished
+    moving, so for a brief moment while 999 becomes 1000, the display can show nonsense in between.</p>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0;font-size:1.05rem">Build it: the asynchronous (ripple) counter</h3>
+    <p class="sub" style="margin-bottom:14px">Four flip-flops wired as simple toggles — tie T permanently to 1 and a
+    flip-flop flips on every clock edge it receives. The trick is the clock itself: only FF0 gets the real clock.
+    Every stage after that is clocked by the Q output of the flip-flop before it.</p>
+    <div class="scope" id="rippleWiring"></div>
+    <p class="scope-cap">Nothing here is a shared bus — follow FF0's Q into FF1's clock input, FF1's Q into FF2's, and so on. That chain is the entire circuit.</p>
+
+    <div class="note warn" style="margin-top:16px"><b>Why &ldquo;asynchronous&rdquo;?</b> Nothing here shares one
+    clock line. FF1 only moves once FF0's output has already changed, and that change takes a small but real amount
+    of time (gate delay) to happen. Watch it below: turning 0111 into 1000 means every single bit has to flip, and
+    they do it one after another, not all at once.</div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0;font-size:1.05rem">Watch the worst-case ripple</h3>
+    <p class="sub" style="margin-bottom:10px">0111 (seven) is about to become 1000 (eight) — every single bit has to
+    change. Step through it one gate-delay at a time and watch what the register reads in between.</p>
+    <div class="rig" id="rippleRig"></div>
+    <div class="btnrow">
+      <button class="clkbtn" id="rippleStep">Next gate delay &#9654;</button>
+      <button class="btn ghost" id="rippleReset">Reset to 0111</button>
+    </div>
+    <div class="feedback show good" id="rippleMsg" style="margin-top:16px"></div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0;font-size:1.05rem">Build it: the synchronous counter</h3>
+    <p class="sub" style="margin-bottom:14px">Same four toggle flip-flops, but every CLK pin is wired to the <em>same</em>
+    clock line. To still count correctly, each stage now needs to know in advance whether it is allowed to toggle this
+    pulse — so an AND gate feeds every T input after the first, enabled only when every bit before it is already 1.</p>
+    <div class="scope" id="syncWiring"></div>
+    <p class="scope-cap">FF1 toggles whenever Q0 is 1. FF2 toggles only when Q0 <em>and</em> Q1 are both 1. FF3 toggles only when Q0, Q1 <em>and</em> Q2 are all 1 — built from two cascaded 2-input ANDs rather than one 3-input gate.</p>
+
+    <div class="note win" style="margin-top:16px"><b>No ripple, no glitch.</b> Every flip-flop sees the clock edge at
+    the same instant. The AND gates have already worked out, before the clock even ticks, exactly which bits are
+    allowed to flip — so 0111 jumps straight to 1000 in one clean step. The price is the gates themselves: more
+    hardware to do the same job.</div>
+  </div>
+
+  <table class="wire">
+    <thead><tr><th>Ripple (asynchronous)</th><th>Synchronous</th></tr></thead>
+    <tbody>
+      <tr><td class="m">Each stage clocked by the Q of the stage before it</td><td class="m">Every stage shares one clock line</td></tr>
+      <tr><td class="m">No extra gates — just flip-flops</td><td class="m">One AND gate per stage, after the first</td></tr>
+      <tr><td class="m">Briefly shows wrong values mid-count — a "glitch"</td><td class="m">Every output changes at exactly the same instant</td></tr>
+      <tr><td class="m">Gets slower the more bits you add — delay stacks up</td><td class="m">Speed barely changes as bits are added</td></tr>
+      <tr><td class="m">Fine for slow jobs — dividing a clock down, blinking an LED</td><td class="m">What a real CPU uses — every nanosecond counts</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
 <section id="cpu"><div class="wrap">
   <h2>The registers with names</h2>
   <p class="sub">Inside a processor there are registers doing specific jobs, and each one has a name you are expected
@@ -429,15 +497,15 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
 
 <section id="test"><div class="wrap">
   <h2>Unit test</h2>
-  <p class="sub">Forty questions. Nothing is saved, nothing is sent, nobody sees your score but you. Every answer is
-  explained, and the breakdown at the end tells you exactly which section to go back and play with.</p>
+  <p class="sub">Forty-three questions. Nothing is saved, nothing is sent, nobody sees your score but you. Every answer
+  is explained, and the breakdown at the end tells you exactly which section to go back and play with.</p>
 
   <div id="testIntro" class="panel">
     <h3 style="margin-bottom:10px">What it covers</h3>
     <ul style="color:var(--ink2);font-size:.96rem;margin:0;padding-left:20px">
       <li><b>Part A</b> — registers, serial and parallel (8 questions)</li>
       <li><b>Part B</b> — SISO, SIPO, PISO, PIPO (9)</li>
-      <li><b>Part C</b> — shift registers, universal registers, counters (8)</li>
+      <li><b>Part C</b> — shift registers, universal registers, ripple and synchronous counters (11)</li>
       <li><b>Part D</b> — CPU registers and what each one holds (8)</li>
       <li><b>Part E</b> — the fetch–decode–execute cycle (7)</li>
     </ul>
@@ -588,12 +656,13 @@ function gateSvg(type,x,y,w,h){
 
 /* A D flip-flop: taller than wide, D on the left, Q/Q' on the right,
    an edge-triggered clock wedge notched into the bottom-left. */
-function ffBox(x,y,label){
+function ffBox(x,y,label,pin){
+  pin=pin||'D';
   const w=64,h=96;
   const dY=y+h*0.30, qY=y+h*0.30, qpY=y+h*0.62, clkY=y+h-13;
   let g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${BOARD}" stroke="${INK}" stroke-width="2.2"/>`;
   g+=stxt(x+w/2,y+18,label,{anchor:'middle',sz:12});
-  g+=sline(x-11,dY,x,dY)+stxt(x+6,dY+4,'D',{sz:12});
+  g+=sline(x-11,dY,x,dY)+stxt(x+6,dY+4,pin,{sz:12});
   g+=sline(x+w,qY,x+w+11,qY)+stxt(x+w-15,qY+4,'Q',{sz:12});
   g+=stxt(x+w-21,qpY+4,"Q'",{sz:12});
   g+=`<path d="M${x},${clkY-7} L${x+10},${clkY} L${x},${clkY+7}" fill="none" stroke="${INK}" stroke-width="2"/>`;
@@ -770,6 +839,80 @@ function universalWiringSvg(){
   return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="Universal shift register: one bit shown in full detail with a 4-to-1 multiplexer selecting between hold, shift right, shift left and parallel load, driven by select lines S1 and S0, with the remaining three bits shown as repeated abbreviated blocks sharing the same select and clock lines">${g}</svg>`;
 }
 
+/* ---- Ripple (asynchronous) counter: toggle flip-flops, each clocked by the Q before it ---- */
+function rippleCounterSvg(){
+  const pitch=150, x0=86, ffY=40;
+  const boxes=[0,1,2,3].map(i=>ffBox(x0+i*pitch,ffY,'FF'+i,'T'));
+  let g='';
+  boxes.forEach(b=>{ g+=sline(b.dX-26,b.dY,b.dX,b.dY)+stxt(b.dX-32,b.dY+4,'1',{sz:11,anchor:'end',col:'var(--ink3)'}); });
+  g+=sline(16,boxes[0].clkY,boxes[0].clkX,boxes[0].clkY)+stxt(16,boxes[0].clkY-8,'CLK IN',{sz:10,col:'var(--hot)'});
+  boxes.forEach((b,i)=>{
+    if(i<3){
+      const nb=boxes[i+1];
+      g+=selbow(`${b.qX},${b.qY} ${nb.clkX-16},${b.qY} ${nb.clkX-16},${nb.clkY} ${nb.clkX},${nb.clkY}`);
+      g+=stxt(b.qX+4,b.qY-8,'Q'+i,{sz:9,col:'var(--hot)'});
+    } else {
+      g+=sline(b.qX,b.qY,b.qX+30,b.qY)+stxt(b.qX+4,b.qY-8,'Q3',{sz:9,col:'var(--hot)'});
+    }
+  });
+  boxes.forEach(b=>g+=b.svg);
+  const vw=x0+3*pitch+64+60, vh=ffY+96+30;
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="Asynchronous ripple counter: four toggle flip-flops FF0 to FF3, T tied high on every stage, only FF0 driven by the real clock, each later stage clocked by the Q output of the stage before it">${g}</svg>`;
+}
+
+/* ---- Synchronous counter: one shared clock, AND-gated toggle enables ---- */
+function syncCounterSvg(){
+  const pitch=170, x0=70, ffY=190, clkBusY=320, topY=70;
+  const gw=36, gh=24;
+  const boxes=[0,1,2,3].map(i=>ffBox(x0+i*pitch,ffY,'FF'+i,'T'));
+  let g='';
+
+  // FF0's T tied high
+  g+=sline(boxes[0].dX-26,boxes[0].dY,boxes[0].dX,boxes[0].dY)+stxt(boxes[0].dX-32,boxes[0].dY+4,'1',{sz:11,anchor:'end',col:'var(--ink3)'});
+
+  // shared clock bus
+  g+=sline(16,clkBusY,boxes[3].clkX,clkBusY)+stxt(0,clkBusY+4,'CLK',{sz:11,col:'var(--hot)'});
+  boxes.forEach(b=>g+=sline(b.clkX,b.bottom,b.clkX,clkBusY)+sdot(b.clkX,clkBusY));
+
+  // AND_a = Q0 . Q1  -> feeds FF2.T and AND_b
+  const andAx=boxes[2].x-70, andAy=130;
+  const AA=gateSvg('AND',andAx,andAy,gw,gh);
+  // AND_b = AND_a . Q2 -> feeds FF3.T
+  const andBx=boxes[3].x-70, andBy=130;
+  const AB=gateSvg('AND',andBx,andBy,gw,gh);
+  g+=AA.svg+AB.svg;
+
+  // Q0 -> FF1.T directly, and (routed above FF1) -> AND_a top input
+  g+=sdot(boxes[0].qX,boxes[0].qY);
+  g+=sline(boxes[0].qX,boxes[0].qY,boxes[1].dX,boxes[1].dY)+stxt(boxes[0].qX+4,boxes[0].qY-8,'Q0',{sz:9,col:'var(--hot)'});
+  g+=selbow(`${boxes[0].qX},${boxes[0].qY} ${boxes[0].qX},${topY} ${andAx-14},${topY} ${andAx-14},${AA.inTopY}`);
+  g+=sline(andAx-14,AA.inTopY,andAx,AA.inTopY);
+
+  // Q1 -> AND_a bottom input
+  g+=sline(boxes[1].qX,boxes[1].qY,andAx-14,boxes[1].qY)+stxt(boxes[1].qX+4,boxes[1].qY-8,'Q1',{sz:9,col:'var(--hot)'});
+  g+=sline(andAx-14,boxes[1].qY,andAx-14,AA.inBotY)+sline(andAx-14,AA.inBotY,andAx,AA.inBotY);
+
+  // AND_a output -> FF2.T, and continues -> AND_b top input
+  g+=sdot(AA.outX,AA.outY);
+  g+=selbow(`${AA.outX},${AA.outY} ${boxes[2].dX},${AA.outY} ${boxes[2].dX},${boxes[2].dY}`);
+  g+=selbow(`${AA.outX},${AA.outY} ${andBx-14},${AA.outY} ${andBx-14},${AB.inTopY}`);
+  g+=sline(andBx-14,AB.inTopY,andBx,AB.inTopY);
+
+  // Q2 -> AND_b bottom input
+  g+=sline(boxes[2].qX,boxes[2].qY,boxes[2].qX+10,boxes[2].qY)+stxt(boxes[2].qX+4,boxes[2].qY-8,'Q2',{sz:9,col:'var(--hot)'});
+  g+=sline(boxes[2].qX+10,boxes[2].qY,boxes[2].qX+10,AB.inBotY)+sline(boxes[2].qX+10,AB.inBotY,andBx,AB.inBotY);
+
+  // AND_b output -> FF3.T
+  g+=selbow(`${AB.outX},${AB.outY} ${boxes[3].dX},${AB.outY} ${boxes[3].dX},${boxes[3].dY}`);
+
+  // FF3's own Q, labelled, nothing further to feed
+  g+=sline(boxes[3].qX,boxes[3].qY,boxes[3].qX+30,boxes[3].qY)+stxt(boxes[3].qX+4,boxes[3].qY-8,'Q3',{sz:9,col:'var(--hot)'});
+
+  boxes.forEach(b=>g+=b.svg);
+  const vw=boxes[3].qX+70, vh=clkBusY+28;
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="Synchronous counter: four toggle flip-flops sharing one clock line, FF0's T tied high, FF1's T driven directly by Q0, FF2's T by an AND of Q0 and Q1, FF3's T by that AND gate's output ANDed again with Q2">${g}</svg>`;
+}
+
 function srDraw(ch){
   const T=TYPES[sType];
   $('#srSel').innerHTML=Object.keys(TYPES).map(k=>
@@ -867,6 +1010,54 @@ $('#uClk').addEventListener('click',()=>{
 $('#uWiring').innerHTML=universalWiringSvg()+
   `<p class="scope-cap">One flip-flop shown with its full 4:1 multiplexer — hold, shift right, shift left or parallel load, picked by S1 and S0. The other three bits are wired exactly the same way.</p>`;
 uDraw();
+
+/* ================= COUNTERS ================= */
+$('#rippleWiring').innerHTML=rippleCounterSvg();
+$('#syncWiring').innerHTML=syncCounterSvg();
+
+function rippleSteps(startBits){
+  // startBits = [Q0,Q1,Q2,Q3]. FF0 always receives the real clock edge first;
+  // each later stage only toggles if the stage before it just fell 1 -> 0.
+  const bits=[...startBits];
+  const steps=[{bits:[...bits], stage:null}];
+  let i=0, propagate=true;
+  while(propagate && i<4){
+    const before=bits[i];
+    bits[i]=bits[i]?0:1;
+    const fell=before===1 && bits[i]===0;
+    steps.push({bits:[...bits], stage:i, fell});
+    propagate=fell;
+    i++;
+  }
+  return steps;
+}
+const rippleVal=b=>b[0]+b[1]*2+b[2]*4+b[3]*8;
+function counterCells(bits,hot){
+  return bits.map((v,i)=>`<div class="cellbox"><div class="cell ${v?'on':''} ${i===hot?'pop':''}">${v}</div><small>Q${i}</small></div>`).join('')
+    +`<span class="arrow live">=</span><div class="port"><span class="plabel">decimal</span><span class="pval live">${rippleVal(bits)}</span></div>`;
+}
+let rippleBits=[1,1,1,0], rippleSeq=null, rippleIdx=0;
+function rippleDraw(){
+  const b=rippleSeq?rippleSeq[rippleIdx].bits:rippleBits;
+  const hot=rippleSeq&&rippleIdx>0?rippleSeq[rippleIdx].stage:null;
+  $('#rippleRig').innerHTML=counterCells(b,hot);
+}
+function rippleReset(){
+  rippleBits=[1,1,1,0]; rippleSeq=null; rippleIdx=0; rippleDraw();
+  $('#rippleMsg').innerHTML='Starting value: <b>0111 = 7</b>. Press &ldquo;Next gate delay&rdquo; to apply the real clock edge to FF0.';
+}
+$('#rippleStep').addEventListener('click',()=>{
+  if(!rippleSeq){ rippleSeq=rippleSteps(rippleBits); rippleIdx=0; }
+  if(rippleIdx>=rippleSeq.length-1){ $('#rippleMsg').innerHTML='Fully settled at <b>1000 = 8</b>. Press Reset to run it again.'; return; }
+  rippleIdx++; rippleDraw();
+  const s=rippleSeq[rippleIdx], val=rippleVal(s.bits);
+  const msg = rippleIdx===rippleSeq.length-1
+    ? `<b>Settled: ${val} — correct at last.</b> FF${s.stage} just rose from 0 to 1, so the ripple stops here — there is no FF4 for it to trigger.`
+    : `<b>FF${s.stage} just fell from 1 to 0,</b> which clocks FF${s.stage+1} next. Right now the register reads <b>${val}</b> — not 7, not 8, just a brief wrong answer while the ripple is still travelling down the chain.`;
+  $('#rippleMsg').innerHTML=msg;
+});
+$('#rippleReset').addEventListener('click',rippleReset);
+rippleReset();
 
 /* ================= CPU REGISTER TOUR ================= */
 const REGS=[
@@ -1120,6 +1311,12 @@ const Q=[
  why:'Synchronous means everything shares one clock. In a ripple counter each stage clocks the next, so changes arrive at slightly different times and the outputs are briefly wrong while the change propagates.'},
 {p:'C',q:'A shift register used to delay a signal by a fixed number of clock cycles is being used as a:',opts:['Counter','Delay line','Decoder','Comparator'],a:1,
  why:'A 4-stage SISO delays whatever you feed it by exactly four clock pulses. That predictable delay is genuinely useful in signal processing and communications.'},
+{p:'C',q:'In a synchronous counter, what does every flip-flop’s CLK pin connect to?',opts:['The Q output of the previous stage','The same single clock line as every other stage','Nothing — synchronous counters are not clocked','An AND gate'],a:1,
+ why:'That shared clock line is exactly what "synchronous" means here — every stage changes on the same edge, instead of waiting for its neighbour like a ripple counter does.'},
+{p:'C',q:'In a 4-bit synchronous counter, what must be true for FF3’s T input to be enabled (allowed to toggle)?',opts:['Only FF2’s Q must be 1','Q0, Q1 and Q2 must all be 1','The clock must be high','FF0’s T must be 1'],a:1,
+ why:'FF3 only toggles when every bit below it is already 1 — otherwise the count would skip straight past values. That condition is built from AND gates, often two 2-input ANDs cascaded rather than one 3-input gate.'},
+{p:'C',q:'Why does a synchronous counter need AND gates in front of its flip-flops, when a ripple counter does not?',opts:['It does not really need them, they are optional','Every stage shares one clock, so each flip-flop needs its own logic to work out IN ADVANCE whether this pulse should toggle it','AND gates make the counter faster','To stop the counter overflowing'],a:1,
+ why:'A ripple counter gets its "when do I toggle" answer for free — it only ever sees a clock edge when it is actually supposed to flip. A synchronous counter’s flip-flops all see every clock edge, so an AND gate has to pre-compute whether toggling is correct this time.'},
 {p:'D',q:'Which register holds the address of the NEXT instruction to be executed?',opts:['Instruction Register','Program Counter','Accumulator','Memory Data Register'],a:1,
  why:'The PC is the CPU\u2019s finger on the line of the recipe. A jump instruction works simply by overwriting it with a different address.'},
 {p:'D',q:'Which register holds the instruction currently being decoded and executed?',opts:['Program Counter','Instruction Register','Accumulator','Memory Address Register'],a:1,
