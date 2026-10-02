@@ -146,6 +146,28 @@ table.tr tr:last-child td{box-shadow:inset 0 -3px 0 var(--hot)}
 .reggroup-h .gs{font-size:.76rem;color:var(--ink3)}
 .notregtag{font-family:"Space Grotesk",sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
   color:var(--ink3);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+/* ---- the skit ---- */
+details.skit{border:2px solid var(--line);border-radius:14px;background:var(--board);margin:18px 0;overflow:hidden}
+details.skit summary{cursor:pointer;list-style:none;padding:16px 20px;display:flex;align-items:center;gap:12px;
+  font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:1rem}
+details.skit summary::-webkit-details-marker{display:none}
+details.skit summary::before{content:"\25B8";color:var(--hot);font-size:1.1rem;transition:transform .2s;flex:none}
+details.skit[open] summary::before{transform:rotate(90deg)}
+details.skit summary .sub2{font-family:"Work Sans",sans-serif;font-weight:400;font-size:.82rem;color:var(--ink3)}
+.skit-body{padding:0 22px 22px}
+.skit-cast{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 18px}
+.skit-cast span{font-family:"JetBrains Mono",monospace;font-size:.74rem;font-weight:700;border-radius:999px;
+  padding:4px 11px;border:1.5px solid var(--gc);color:var(--gc);background:var(--board)}
+.scene{margin:20px 0 0}
+.scene:first-child{margin-top:0}
+.scene-h{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--ink3);border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px}
+.line{font-size:.92rem;line-height:1.55;margin:0 0 7px;padding-left:1px}
+.line b{font-family:"JetBrains Mono",monospace;font-weight:700}
+.dir{font-style:italic;color:var(--ink3);font-size:.84rem}
+.line.beat{font-weight:700;color:var(--hot);text-align:center;margin:12px 0;font-size:.95rem}
+.line.narr{color:var(--ink2);border-left:3px solid var(--line);padding-left:11px}
 .bus{margin:14px 0;border:2px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--paper);
   font-family:"JetBrains Mono",monospace;font-size:.9rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .bus.live{border-color:var(--hot);background:#FFF6E6}
@@ -419,6 +441,100 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
     <div id="regTour"></div>
     <p style="font-size:.88rem;color:var(--ink3);margin:14px 0 0">Click any register — it opens right there to tell you more.</p>
   </div>
+
+  <details class="skit">
+    <summary>Watch it as a street skit <span class="sub2">— one street, four houses, the same fetch–decode–execute cycle, played out by the class</span></summary>
+    <div class="skit-body">
+      <p class="sub" style="margin:0 0 16px">This runs the exact program from the stepper further down the page —
+      <code>LOAD 5, ADD 3, STORE 7, SUB 2, HALT</code> — with real people playing each register. Same cycle, same
+      numbers, same final answer. Nothing here is invented to make the story work.</p>
+
+      <div class="skit-cast">
+        <span style="--gc:var(--violet)">JERMORIE — PC</span>
+        <span style="--gc:var(--violet)">CALEB — MAR</span>
+        <span style="--gc:var(--hot)">KIARA — MDR</span>
+        <span style="--gc:var(--hot)">ALEC — IR</span>
+        <span style="--gc:var(--red)">CAMRON — ACC</span>
+        <span style="--gc:var(--red)">NURU — ALU</span>
+        <span style="--gc:var(--amber)">TENIQUA — FLG</span>
+        <span style="--gc:var(--mint)">ZAHIR — GP</span>
+        <span style="--gc:var(--cyan)">CHORUS — just vibing</span>
+      </div>
+
+      <p class="line dir">A street of eight houses, numbered 0 to 7. JERMORIE has a bike. CALEB has chalk and writes
+      on his own palm. KIARA has a bike basket. ALEC reads everything out loud like it's a royal decree. CAMRON stands
+      behind a folding table with a chalkboard. NURU stands next to him, sleeves already rolled up, doing nothing yet.
+      TENIQUA has a clipboard. ZAHIR's bookbag has at least eleven pockets. MICHAEL, MALIK, CHAQUAN and KAEDEN are
+      sitting on the wall opposite, narrating nothing, qualified for nothing, here for vibes only.</p>
+
+      <div class="scene">
+        <div class="scene-h">Scene 1 · Fetch — House 0</div>
+        <p class="line"><b style="color:var(--violet)">JERMORIE</b> — Next stop: House Zero. <span class="dir">(already checking his wrist, where "0" is written)</span></p>
+        <p class="line"><b style="color:var(--violet)">CALEB</b> — <span class="dir">(writes "0" on his own palm)</span> Noted. Address zero. I don't carry data, I only ever carry WHERE.</p>
+        <p class="line dir">Jermorie cycles to House 0. Kiara knocks. A card slides out from under the door: "LOAD 5".</p>
+        <p class="line"><b style="color:var(--hot)">KIARA</b> — <span class="dir">(catching it in the basket)</span> Got it. Don't ask me what it means — I just carry whatever memory hands me.</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — <span class="dir">(snatching the card, reading it like a royal decree)</span> "LOAD... FIVE." <span class="dir">(hugs it to his chest)</span> Got it. Holding it. Don't talk to me.</p>
+        <p class="line narr">That's Fetch. PC says where, MAR writes it down, memory hands it over, MDR carries it, IR holds onto it. And before anyone has even worked out what it <em>means</em>—</p>
+        <p class="line"><b style="color:var(--violet)">JERMORIE</b> — <span class="dir">(already pedalling away)</span> House One, next.</p>
+        <p class="line narr">— the finger has already moved to the next line. That's the PC incrementing during Fetch, before this instruction has even run.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Scene 2 · Decode</div>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — <span class="dir">(unfolding the card)</span> "LOAD. FIVE." Breaking it down: LOAD means — Camron, clear your table, something's coming. Five means five.</p>
+        <p class="line"><b style="color:var(--mint)">ZAHIR</b> — <span class="dir">(leaning in)</span> Is five a house number?</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — No.</p>
+        <p class="line"><b style="color:var(--mint)">ZAHIR</b> — <span class="dir">(deflating)</span> I had a whole House Five joke ready.</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — Not every number's an address, Zahir. Sometimes a five is just a five.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Scene 3 · Execute — House 0 and House 1</div>
+        <p class="line"><b style="color:var(--red)">CAMRON</b> — <span class="dir">(writes "5" on the chalkboard)</span> Total: five. That's all I do — I just hold the number.</p>
+        <p class="line"><b style="color:var(--amber)">TENIQUA</b> — <span class="dir">(glancing, writing)</span> Zero? No. Negative? No. <span class="dir">(to the chorus)</span> Boring update. Moving on.</p>
+        <p class="line dir">House 1: the card says "ADD 3".</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — "ADD. THREE." Camron — three more.</p>
+        <p class="line"><b style="color:var(--red)">NURU</b> — <span class="dir">(finally cracking their knuckles)</span> THAT'S me. Camron just holds the number — I'm the one actually doing five plus three. <span class="dir">(counts dramatically on fingers)</span> Eight.</p>
+        <p class="line"><b style="color:var(--red)">CAMRON</b> — <span class="dir">(erases "5", writes "8")</span> Total: eight. I didn't do that math. Nuru did. I just hold it.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Scene 4 · House 2 — "STORE 7"</div>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — "STORE. SEVEN." Okay, THIS one's different —</p>
+        <p class="line"><b style="color:var(--mint)">ZAHIR</b> — Is seven a house number this time??</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — Yes! Finally, Zahir. Yes.</p>
+        <p class="line dir">Kiara and Caleb jog Camron's current total (8) over to House 7's door and tape up a new card.</p>
+        <p class="line"><b style="color:var(--violet)">CALEB</b> — <span class="dir">(writing "7" on his palm)</span> House seven gets a new card: "Data: 8".</p>
+        <p class="line beat">MICHAEL, MALIK, CHAQUAN, KAEDEN — <span style="color:var(--ink)">...six... seven...?</span></p>
+        <p class="line narr">Not yet. Keep watching.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Scene 5 · House 3 — "SUB 2"</div>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — "SUB. TWO."</p>
+        <p class="line"><b style="color:var(--red)">NURU</b> — <span class="dir">(rolling sleeves back up)</span> Eight, take away two.</p>
+        <p class="line"><b style="color:var(--red)">CAMRON</b> — <span class="dir">(erases "8", writes "6")</span> Total: six.</p>
+        <p class="line"><b style="color:var(--amber)">TENIQUA</b> — <span class="dir">(actually looking up this time)</span> Not zero. Still positive. Clean subtraction, no borrow. First interesting thing I've written all day.</p>
+        <p class="line beat">CHORUS — <span style="color:var(--hot)">SIIIIX... SEEEEVEN!</span></p>
+        <p class="line narr">There it is. Final answer: six. Filed, for safekeeping, in house seven. Both true at once — that's not a glitch, that's just what a CPU does.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Scene 6 · House 4 — "HALT"</div>
+        <p class="line"><b style="color:var(--violet)">JERMORIE</b> — House Four.</p>
+        <p class="line"><b style="color:var(--hot)">ALEC</b> — "...HALT."</p>
+        <p class="line dir">Everyone freezes, mid-motion.</p>
+        <p class="line narr">And that's it. No more houses get visited. Which is the entire point of HALT — without it, Jermorie just keeps riding, Kiara keeps knocking on doors with nothing useful behind them, and eventually somebody hands over a card that means nothing at all, and the whole street tries to obey it anyway.</p>
+      </div>
+
+      <div class="scene">
+        <div class="scene-h">Coda · The one nobody scripted</div>
+        <p class="line"><b style="color:var(--red)">CAMRON</b> — Wait — does anyone actually have a calculator to check Nuru's work?</p>
+        <p class="line"><b style="color:var(--mint)">ZAHIR</b> — <span class="dir">(already holding one out)</span> I have one. I also have a spare pencil, a second pencil case, and for some reason a protractor.</p>
+        <p class="line narr">Nobody told Zahir to carry any of that. That's the whole job description — general purpose means whatever the program turns out to need, decided after the fact, not before.</p>
+      </div>
+    </div>
+  </details>
 
   <div class="note warn"><b>MDR and MBR — the pair everyone muddles.</b> The <b>Memory Address Register</b> holds
   <em>where</em>. The <b>Memory Data Register</b> holds <em>what</em>. Some textbooks also call the MDR a
