@@ -86,6 +86,11 @@ section>.wrap>h2{font-size:clamp(1.6rem,4vw,2.2rem);margin-bottom:6px}
 .tab{border:1px solid var(--line);background:var(--board);border-radius:9px;padding:8px 15px;font-size:.88rem;cursor:pointer}
 .tab[aria-pressed="true"]{background:var(--hot);color:#fff;border-color:var(--hot)}
 
+/* ---- static schematics: black on white, scroll sideways rather than shrink ---- */
+.scope{overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--board);border:1px solid var(--line);border-radius:10px;padding:10px 6px}
+.scope svg{display:block;height:auto}
+.scope-cap{font-size:.85rem;color:var(--ink2);margin:8px 2px 0}
+
 /* ---- shift register visual ---- */
 .rig{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding:8px 2px}
 .cellbox{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
@@ -279,6 +284,9 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
   </div>
 
   <div class="panel">
+    <h4 style="font-size:.92rem;margin:0 0 8px">One bit in full detail, then the other three</h4>
+    <div class="scope" id="uWiring" style="margin-bottom:16px"></div>
+
     <div class="tabs" id="uMode"></div>
     <div class="rig" id="uRig"></div>
     <div class="btnrow">
@@ -538,65 +546,228 @@ const PARDATA=[1,0,1,1];
 let sType='SISO', sC=[0,0,0,0], sIdx=0, sOut=null, sTrace=[], sLoaded=false, sRun=null;
 
 /* ================= WIRING DIAGRAM PER TYPE ================= */
-function muxSym(x,y,w,h,colour){
-  const d=`M${x},${y} L${x+w},${y+h*0.22} L${x+w},${y+h*0.78} L${x},${y+h} Z`;
-  return `<path d="${d}" fill="${colour||'var(--violet)'}" opacity=".92"/>`;
+/* =================================================================
+   STATIC SCHEMATICS — plain black-on-white, exam/textbook style.
+   These replace the old abstract rounded-box diagrams: every flip-flop
+   is a real D/Q/Q'/CLK symbol, every gate is the IEEE distinctive shape,
+   every wire is a straight or right-angled line. Colour is used only for
+   a handful of labels, so the figure still reads if printed in grey.
+   ================================================================= */
+const INK='var(--ink)', BOARD='var(--board)';
+function stxt(x,y,t,o){ o=o||{};
+  return `<text x="${x}" y="${y}" text-anchor="${o.anchor||'start'}" font-family="JetBrains Mono, monospace" font-size="${o.sz||11}" font-weight="${o.w||700}" fill="${o.col||INK}">${esc(t)}</text>`;
 }
+function sline(x1,y1,x2,y2){ return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${INK}" stroke-width="2"/>`; }
+function sdot(x,y){ return `<circle cx="${x}" cy="${y}" r="3.2" fill="${INK}"/>`; }
+function selbow(pts){ return `<polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`; }
+
+/* IEEE gate bodies — identical path maths to topic-02's gateBody, redrawn
+   outline-only (no fill) so they stay legible in black and white. */
+function gateBody(type,x,y,w,h){
+  const bubble=/^(NAND|NOR|XNOR|NOT)$/.test(type);
+  let d='', extra='';
+  if(type==='AND'||type==='NAND'){
+    d=`M${x},${y} h${w*0.45} a${h/2},${h/2} 0 0 1 0,${h} h-${w*0.45} z`;
+  } else if(type==='NOT'){
+    d=`M${x},${y} L${x+w},${y+h/2} L${x},${y+h} z`;
+  } else {
+    d=`M${x},${y} Q${x+w*0.72},${y} ${x+w},${y+h/2} Q${x+w*0.72},${y+h} ${x},${y+h} Q${x+w*0.32},${y+h/2} ${x},${y} z`;
+  }
+  if(bubble) extra+=`<circle cx="${x+w+5}" cy="${y+h/2}" r="5" fill="${BOARD}" stroke="${INK}" stroke-width="2"/>`;
+  return {d, extra, outX:x+w+(bubble?10:0), outY:y+h/2};
+}
+function gateSvg(type,x,y,w,h){
+  const g=gateBody(type,x,y,w,h);
+  const n=(type==='NOT')?1:2;
+  let ins='';
+  if(n===1) ins+=sline(x-14,y+h/2,x,y+h/2);
+  else { ins+=sline(x-14,y+h*0.28,x,y+h*0.28); ins+=sline(x-14,y+h*0.72,x,y+h*0.72); }
+  return {svg:`${ins}<path d="${g.d}" fill="${BOARD}" stroke="${INK}" stroke-width="2"/>${g.extra}`,
+          outX:g.outX, outY:g.outY, inTopY:y+h*0.28, inBotY:y+h*0.72, x, w, h};
+}
+
+/* A D flip-flop: taller than wide, D on the left, Q/Q' on the right,
+   an edge-triggered clock wedge notched into the bottom-left. */
+function ffBox(x,y,label){
+  const w=64,h=96;
+  const dY=y+h*0.30, qY=y+h*0.30, qpY=y+h*0.62, clkY=y+h-13;
+  let g=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${BOARD}" stroke="${INK}" stroke-width="2.2"/>`;
+  g+=stxt(x+w/2,y+18,label,{anchor:'middle',sz:12});
+  g+=sline(x-11,dY,x,dY)+stxt(x+6,dY+4,'D',{sz:12});
+  g+=sline(x+w,qY,x+w+11,qY)+stxt(x+w-15,qY+4,'Q',{sz:12});
+  g+=stxt(x+w-21,qpY+4,"Q'",{sz:12});
+  g+=`<path d="M${x},${clkY-7} L${x+10},${clkY} L${x},${clkY+7}" fill="none" stroke="${INK}" stroke-width="2"/>`;
+  return {svg:g,x,y,w,h, dX:x-11,dY, qX:x+w+11,qY, clkX:x,clkY, bottom:y+h};
+}
+
 const WIRING_CAPTION={
- SISO:'One chain: Q of each stage feeds D of the next. Only the first D and the last Q go anywhere outside the chip.',
- SIPO:'Same chain as SISO — but every stage’s Q is also tapped out, so all four bits can be read at once.',
- PISO:'Stage 0 loads its bit directly. Stages 1–3 each have a MUX choosing between their own parallel bit (P) and the previous stage’s Q — a shared LOAD/SHIFT line (not drawn) switches all three at once.',
- PIPO:'Four independent D flip-flops sharing one clock. Nothing is chained, which is why nothing here needs a mux.'
+ SISO:'One chain: Q of each stage feeds D of the next. Only the first D and the last Q go anywhere outside the chip — draw FF3 → FF2 → FF1 → FF0 and you have the whole circuit.',
+ SIPO:'Same chain as SISO — but every stage’s Q is also tapped straight down, so all four bits can be read in parallel at any moment.',
+ PISO:'Every stage sits behind a 2:1 multiplexer built from two ANDs and an OR. LOAD/SHIFT high picks the parallel bit P; low (through the single shared inverter) picks the previous stage’s Q instead. FF3 has nothing to shift in from, so its shift path is tied to 0.',
+ PIPO:'Four independent D flip-flops sharing one clock. Nothing is chained, which is why nothing here needs a mux — each flip-flop just takes its own parallel bit and offers its own Q straight back out.'
 };
-function wiringSvg(type){
-  const bw=62,bh=52,pitch=110,x0=70,y=40,busY=134,qY=y+bh/2;
-  const boxX=i=>x0+i*pitch;
+
+/* ---- SISO / SIPO: a plain chain, optionally tapped out in parallel ---- */
+function chainSvg(parallelOut){
+  const pitch=150, x0=72, ffY=54;
+  const boxes=[0,1,2,3].map(i=>ffBox(x0+i*pitch,ffY,'FF'+(3-i)));
+  const clkBusY = parallelOut?236:168, parOutY=196;
   let g='';
-  g+=svgtxt(0,busY+4,'CLK','var(--hot)',10);
+  g+=sline(16,clkBusY,boxes[3].clkX,clkBusY)+stxt(0,clkBusY+4,'CLK',{sz:11,col:'var(--hot)'});
+  boxes.forEach(b=>g+=sline(b.clkX,b.bottom,b.clkX,clkBusY)+sdot(b.clkX,clkBusY));
+  g+=sline(x0-44,boxes[0].dY,boxes[0].dX,boxes[0].dY)+stxt(x0-44,boxes[0].dY-8,'SER IN',{sz:10,col:'var(--hot)'});
+  boxes.forEach((b,i)=>{
+    if(i<3){ g+=sline(b.qX,b.qY,boxes[i+1].dX,boxes[i+1].dY); if(parallelOut) g+=sdot(b.qX,b.qY); }
+    if(parallelOut) g+=sline(b.qX,b.qY,b.qX,parOutY)+stxt(b.qX,parOutY+15,'Q'+(3-i),{sz:10,anchor:'middle',col:'var(--hot)'});
+  });
+  if(!parallelOut){ const last=boxes[3]; g+=sline(last.qX,last.qY,last.qX+34,last.qY)+stxt(last.qX+2,last.qY-8,'SER OUT',{sz:10,col:'var(--hot)'}); }
+  boxes.forEach(b=>g+=b.svg);
+  const vw=x0+3*pitch+64+66, vh=clkBusY+28;
+  const label=parallelOut?'SIPO register: four D flip-flops chained Q to D with every stage also tapped out to a parallel output bit'
+                         :'SISO register: four D flip-flops chained Q to D, one serial input, one serial output, four stages later';
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="${label}">${g}</svg>`;
+}
 
-  // boxes + CLK taps, common to every type
-  for(let i=0;i<4;i++){
-    const x=boxX(i), tap=x+bw/2;
-    g+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="6" fill="var(--board)" stroke="var(--ink)" stroke-width="2"/>`;
-    g+=svgtxt(x+bw/2-6,y+bh/2+5,'D','var(--ink)',14);
-    g+=wr(tap,y+bh,tap,busY,false)+dotAt(tap,busY,false);
-    g+=svgtxt(x+bw/2-4,y+bh+16,i,'var(--ink3)',9);
-  }
-  g+=wr(14,busY,x0,busY,false);
+/* ---- PIPO: four independent flip-flops, nothing chained ---- */
+function pipoSvg(){
+  const pitch=150, x0=72, ffY=76, clkBusY=240, parOutY=200, parInY=16;
+  const boxes=[0,1,2,3].map(i=>ffBox(x0+i*pitch,ffY,'FF'+(3-i)));
+  let g='';
+  g+=sline(16,clkBusY,boxes[3].clkX,clkBusY)+stxt(0,clkBusY+4,'CLK',{sz:11,col:'var(--hot)'});
+  boxes.forEach((b,i)=>{
+    g+=sline(b.clkX,b.bottom,b.clkX,clkBusY)+sdot(b.clkX,clkBusY);
+    g+=sline(b.dX,parInY,b.dX,b.dY)+stxt(b.dX,parInY-6,'P'+(3-i),{sz:10,anchor:'middle',col:'var(--hot)'});
+    g+=sline(b.qX,b.qY,b.qX,parOutY)+stxt(b.qX,parOutY+15,'Q'+(3-i),{sz:10,anchor:'middle',col:'var(--hot)'});
+  });
+  boxes.forEach(b=>g+=b.svg);
+  const vw=x0+3*pitch+64+40, vh=clkBusY+28;
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="PIPO register: four independent D flip-flops, each with its own parallel input above and parallel output below, sharing one clock line, nothing chained">${g}</svg>`;
+}
 
-  if(type==='PIPO'){
-    for(let i=0;i<4;i++){
-      const x=boxX(i), tap=x+bw/2;
-      g+=wr(tap,14,tap,y,false)+dotAt(tap,14,false);
-      g+=wr(x+bw,qY,x+bw+16,qY,false)+dotAt(x+bw+16,qY,false);
+/* ---- PISO: a 2:1 mux built from gates in front of every flip-flop ---- */
+function pisoSvg(){
+  const pitch=300, x0=330, ffY=210, FW=64;
+  const gw=36, gh=22, orw=32, orh=72;
+  const andBy=ffY-56, andAy=ffY+58, orY=ffY-16;
+  const ctrlY=56, invY=100, parInY=16, clkBusY=320, invX=66;
+  const boxes=[0,1,2,3].map(i=>ffBox(x0+i*pitch,ffY,'FF'+(3-i)));
+  let g='';
+
+  // shared control line + single inverter, feeding two horizontal buses
+  const lastRight=x0+3*pitch-130;
+  g+=sline(16,ctrlY,invX,ctrlY)+stxt(0,ctrlY-6,'LOAD/SHIFT',{sz:10,col:'var(--hot)'});
+  const inv=gateSvg('NOT',invX,ctrlY-11,26,22);
+  g+=inv.svg;
+  g+=sline(invX,ctrlY,invX+300,ctrlY); // direct bus continues right, straight through
+  g+=selbow(`${inv.outX},${ctrlY} ${inv.outX+10},${ctrlY} ${inv.outX+10},${invY} ${inv.outX+320},${invY}`);
+  g+=stxt(inv.outX+16,invY-8,"LOAD/SHIFT'",{sz:9,col:'var(--ink3)'});
+
+  // CLK bus
+  g+=sline(16,clkBusY,boxes[3].clkX,clkBusY)+stxt(0,clkBusY+4,'CLK',{sz:11,col:'var(--hot)'});
+  boxes.forEach(b=>g+=sline(b.clkX,b.bottom,b.clkX,clkBusY)+sdot(b.clkX,clkBusY));
+
+  boxes.forEach((b,i)=>{
+    const bx=b.x, andX=bx-120, orX=bx-58;
+    const pLaneX=andX-70, ctrlLaneX=andX-50, invLaneX=andX-30, shiftLaneX=andX-10;
+
+    const AB=gateSvg('AND',andX,andBy,gw,gh);   // parallel path
+    const AA=gateSvg('AND',andX,andAy,gw,gh);   // shift path
+    const OR=gateSvg('OR', orX, orY, orw, orh);
+    g+=AB.svg+AA.svg+OR.svg;
+
+    // direct LOAD/SHIFT -> AND_B top input
+    g+=sline(ctrlLaneX,ctrlY,ctrlLaneX,AB.inTopY)+sdot(ctrlLaneX,ctrlY);
+    g+=sline(ctrlLaneX,AB.inTopY,andX,AB.inTopY);
+    // inverted LOAD/SHIFT' -> AND_A top input
+    g+=sline(invLaneX,invY,invLaneX,AA.inTopY)+sdot(invLaneX,invY);
+    g+=sline(invLaneX,AA.inTopY,andX,AA.inTopY);
+    // parallel bit P_i -> AND_B bottom input
+    g+=sline(pLaneX,parInY,pLaneX,AB.inBotY)+stxt(pLaneX,parInY-6,'P'+(3-i),{sz:10,anchor:'middle',col:'var(--hot)'});
+    g+=sline(pLaneX,AB.inBotY,andX,AB.inBotY);
+    // shift source -> AND_A bottom input: previous stage's Q, or tied to 0 for FF3
+    if(i===0){
+      g+=sline(shiftLaneX-40,AA.inBotY,shiftLaneX,AA.inBotY);
+      g+=`<circle cx="${shiftLaneX-40}" cy="${AA.inBotY}" r="3" fill="none" stroke="${INK}" stroke-width="2"/>`;
+      g+=stxt(shiftLaneX-54,AA.inBotY+4,'0',{sz:10,col:'var(--ink3)'});
+      g+=sline(shiftLaneX,AA.inBotY,andX,AA.inBotY);
+    } else {
+      const prev=boxes[i-1];
+      g+=selbow(`${prev.qX},${prev.qY} ${shiftLaneX},${prev.qY} ${shiftLaneX},${AA.inBotY}`);
+      g+=sline(shiftLaneX,AA.inBotY,andX,AA.inBotY);
     }
-    g+=svgtxt(x0,12,'D (each independent)','var(--ink2)',10);
-  } else if(type==='SISO' || type==='SIPO'){
-    g+=wr(x0-30,qY,x0,qY,false)+svgtxt(x0-58,qY-6,'in','var(--ink2)',9);
-    for(let i=0;i<4;i++){
-      const x=boxX(i);
-      if(i<3) g+=wr(x+bw,qY,boxX(i+1),qY,false);
-      else g+=wr(x+bw,qY,x+bw+30,qY,false)+svgtxt(x+bw+2,qY-8,'out','var(--ink2)',9);
-      if(type==='SIPO'){
-        const tap=x+bw/2;
-        g+=wr(tap,y,tap,14,false)+dotAt(tap,14,false);
-      }
-    }
-  } else if(type==='PISO'){
-    for(let i=0;i<4;i++){
-      const x=boxX(i), tap=x+bw/2;
-      if(i===0){
-        g+=wr(tap,14,tap,y,false)+dotAt(tap,14,false);
-        continue;
-      }
-      const mw=20, mh=44, my=qY-mh/2, mx=x-mw;
-      g+=muxSym(mx,my,mw,mh,'var(--violet)');
-      g+=wr(mx+5,my+mh*0.25,mx+5,10,false)+svgtxt(mx-2,8,'P','var(--hot)',9);
-      const prevRight=boxX(i-1)+bw, midX=(prevRight+mx)/2;
-      g+=elbow(prevRight,qY,midX,my+mh*0.75,mx,false);
-    }
-  }
-  return `<svg viewBox="0 0 ${x0+3*pitch+bw+70} 154">${g}</svg>`;
+    // AND outputs -> OR inputs
+    g+=selbow(`${AB.outX},${AB.outY} ${orX},${AB.outY} ${orX},${OR.inTopY}`);
+    g+=selbow(`${AA.outX},${AA.outY} ${orX},${AA.outY} ${orX},${OR.inBotY}`);
+    // OR output -> D
+    g+=selbow(`${OR.outX},${OR.outY} ${OR.outX+16},${OR.outY} ${OR.outX+16},${b.dY} ${b.dX},${b.dY}`);
+  });
+
+  // serial output off the last stage
+  const last=boxes[3];
+  g+=sline(last.qX,last.qY,last.qX+34,last.qY)+stxt(last.qX+2,last.qY-8,'SER OUT',{sz:10,col:'var(--hot)'});
+  boxes.forEach(b=>g+=b.svg);
+
+  const vw=x0+3*pitch+64+70, vh=clkBusY+28;
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="PISO register: each of four D flip-flops sits behind a 2-to-1 multiplexer built from two AND gates and one OR gate, choosing between a parallel load bit and the previous stage's Q, controlled by one shared LOAD/SHIFT line and its single inverter">${g}</svg>`;
+}
+
+function wiringSvg(type){
+  if(type==='SISO') return chainSvg(false);
+  if(type==='SIPO') return chainSvg(true);
+  if(type==='PIPO') return pipoSvg();
+  return pisoSvg();
+}
+
+/* ---- Universal register: one bit in full gate-and-mux detail, then three abbreviated repeats ---- */
+function universalWiringSvg(){
+  const ffY=170, bx=430, FW=64;
+  const mw=70, mh=170, mx=bx-130, my=ffY-38; // 4:1 mux trapezoid in front of the detailed bit
+  const b=ffBox(bx,ffY,'FF2');
+  let g='';
+
+  // the trapezoid mux: wide left edge (4 inputs), narrow right edge (1 output)
+  const inset=34;
+  g+=`<path d="M${mx},${my} L${mx+mw},${my+inset} L${mx+mw},${my+mh-inset} L${mx},${my+mh} Z" fill="${BOARD}" stroke="${INK}" stroke-width="2.2"/>`;
+  g+=stxt(mx+mw/2,my-10,'4:1 MUX',{anchor:'middle',sz:11});
+  const srcY=[my+24, my+62, my+100, my+138];
+  const SRC=[['HOLD','own Q, fed back'],['SHIFT RIGHT','Q of the flip-flop to the left'],['SHIFT LEFT','Q of the flip-flop to the right'],['LOAD','P₂, external parallel data']];
+  srcY.forEach((sy,i)=>{
+    g+=sline(mx-150,sy,mx,sy);
+    g+=stxt(mx-150,sy-6,SRC[i][0],{sz:10,col:'var(--hot)'});
+    g+=stxt(mx-150,sy+13,SRC[i][1],{sz:9,col:'var(--ink3)',w:400});
+  });
+  // output of the mux -> D
+  const outY=my+mh/2;
+  g+=selbow(`${mx+mw},${outY} ${mx+mw+14},${outY} ${mx+mw+14},${b.dY} ${b.dX},${b.dY}`);
+  // select lines S1 S0 into the underside of the trapezoid, and CLK — three clearly
+  // separated rows so the labels never collide with each other.
+  const s1X=mx+mw*0.32, s0X=mx+mw*0.6;
+  const rowS1=my+mh+34, rowS0=my+mh+52, rowClk=my+mh+70;
+  g+=sline(s1X,rowS1,s1X,my+mh-6)+stxt(s1X-8,rowS1+4,'S1',{sz:10,anchor:'end',col:'var(--hot)'});
+  g+=sline(s0X,rowS0,s0X,my+mh-6)+stxt(s0X-8,rowS0+4,'S0',{sz:10,anchor:'end',col:'var(--hot)'});
+  g+=sline(b.clkX,b.bottom,b.clkX,rowClk)+stxt(b.clkX-8,rowClk+4,'CLK',{sz:10,anchor:'end',col:'var(--hot)'});
+  g+=b.svg;
+
+  // the other three bits, abbreviated: a small labelled block sharing the same select + clock bus
+  const repX=[bx+170, bx+170+136, bx+170+272];
+  const repLbl=['FF1','FF0','FF3'];
+  const repTop=ffY-18, repBottom=repTop+108;
+  let busRight=repX[2]+104;
+  g+=sline(s1X,rowS1,busRight,rowS1);
+  g+=sline(s0X,rowS0,busRight,rowS0);
+  g+=sline(b.clkX,rowClk,busRight,rowClk);
+  repX.forEach((rx,i)=>{
+    g+=`<rect x="${rx}" y="${repTop}" width="104" height="108" fill="${BOARD}" stroke="${INK}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    g+=stxt(rx+52,repTop+24,'4:1 MUX',{anchor:'middle',sz:10});
+    g+=stxt(rx+52,repTop+42,'+ '+repLbl[i],{anchor:'middle',sz:10});
+    g+=stxt(rx+52,repTop+62,'same 4 sources',{anchor:'middle',sz:8.5,col:'var(--ink3)',w:400});
+    g+=sdot(rx+26,rowS1)+sline(rx+26,rowS1,rx+26,repBottom);
+    g+=sdot(rx+52,rowS0)+sline(rx+52,rowS0,rx+52,repBottom);
+    g+=sdot(rx+78,rowClk)+sline(rx+78,rowClk,rx+78,repBottom);
+  });
+
+  const vw=busRight+30, vh=rowClk+20;
+  return `<svg viewBox="0 0 ${vw} ${vh}" style="min-width:${vw}px" role="img" aria-label="Universal shift register: one bit shown in full detail with a 4-to-1 multiplexer selecting between hold, shift right, shift left and parallel load, driven by select lines S1 and S0, with the remaining three bits shown as repeated abbreviated blocks sharing the same select and clock lines">${g}</svg>`;
 }
 
 function srDraw(ch){
@@ -693,6 +864,8 @@ $('#uClk').addEventListener('click',()=>{
   else { uC=uPar.slice(); uLast=`Parallel load: the whole word ${uPar.join('')} arrived on one pulse.`; }
   uDraw([0,1,2,3]);
 });
+$('#uWiring').innerHTML=universalWiringSvg()+
+  `<p class="scope-cap">One flip-flop shown with its full 4:1 multiplexer — hold, shift right, shift left or parallel load, picked by S1 and S0. The other three bits are wired exactly the same way.</p>`;
 uDraw();
 
 /* ================= CPU REGISTER TOUR ================= */
