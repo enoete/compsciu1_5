@@ -124,13 +124,19 @@ table.tr td.b1{background:rgba(242,169,59,.22);font-weight:700}
 table.tr tr:last-child td{box-shadow:inset 0 -3px 0 var(--hot)}
 
 /* ---- CPU ---- */
-.cpu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.reg{border:2px solid var(--line);border-left-width:5px;border-left-color:var(--gc,var(--line));background:var(--board);border-radius:11px;padding:11px 13px;transition:.25s}
+.cpu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:start}
+.reg{border:2px solid var(--line);border-left-width:5px;border-left-color:var(--gc,var(--line));background:var(--board);border-radius:11px;padding:11px 13px;transition:border-color .25s,background .25s,box-shadow .25s;width:100%}
 .reg .rn{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--ink3);font-weight:700;display:flex;align-items:center;gap:6px}
+.reg .rn .care{margin-left:auto;font-size:.7rem;color:var(--ink3);transition:transform .2s}
+.reg[aria-expanded="true"] .rn .care{transform:rotate(180deg)}
 .reg .rv{font-family:"JetBrains Mono",monospace;font-size:1.1rem;font-weight:700;margin-top:3px}
 .reg .rd{font-size:.72rem;color:var(--ink3);margin-top:3px;line-height:1.3}
 .reg .rrole{font-size:.73rem;color:#8A5B08;margin-top:6px;font-style:italic;line-height:1.3}
+.reg .rmore{max-height:0;overflow:hidden;opacity:0;transition:max-height .25s ease,opacity .2s,margin-top .25s}
+.reg[aria-expanded="true"] .rmore{max-height:160px;opacity:1;margin-top:9px}
+.reg .rmore-in{border-top:1px dashed var(--line);padding-top:8px;font-size:.78rem;color:var(--ink2);line-height:1.4}
 .reg.src{border-color:var(--cyan);background:rgba(14,124,155,.08);box-shadow:0 0 0 4px rgba(14,124,155,.14)}
+.reg[aria-expanded="true"]{border-color:var(--gc,var(--cyan));box-shadow:0 0 0 4px rgba(14,124,155,.12)}
 .reg.dst{border-color:var(--hot);background:#FFF6E6;box-shadow:0 0 0 4px rgba(194,118,42,.16)}
 .reggroup{margin-bottom:20px}
 .reggroup:last-child{margin-bottom:0}
@@ -411,9 +417,7 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding:26px 0 56px;colo
 
   <div class="panel">
     <div id="regTour"></div>
-    <p style="font-size:.88rem;color:var(--ink3);margin:14px 0 0">Click any register to see what it does and where it
-    appears in the cycle below.</p>
-    <div class="feedback show good" id="tourMsg" style="margin-top:14px"></div>
+    <p style="font-size:.88rem;color:var(--ink3);margin:14px 0 0">Click any register — it opens right there to tell you more.</p>
   </div>
 
   <div class="note warn"><b>MDR and MBR — the pair everyone muddles.</b> The <b>Memory Address Register</b> holds
@@ -1096,11 +1100,12 @@ const REGS=[
   role:'The spare bowls on the counter \u2014 for whatever you need right now.'}
 ];
 function regCard(r,i){
-  return `<button class="reg" data-i="${i}" style="text-align:left;cursor:pointer">
-     <div class="rn">${esc(r.k)}${r.notReg?'<span class="notregtag">not a register</span>':''}</div>
+  return `<button class="reg" data-i="${i}" aria-expanded="false" aria-controls="regmore${i}" style="text-align:left;cursor:pointer">
+     <div class="rn">${esc(r.k)}${r.notReg?'<span class="notregtag">not a register</span>':''}<span class="care">\u25be</span></div>
      <div class="rv" style="font-size:.9rem">${esc(r.n)}</div>
      <div class="rrole">\u201c${esc(r.role)}\u201d</div>
-     <div class="rd">holds: ${esc(r.w)}</div></button>`;
+     <div class="rd">holds: ${esc(r.w)}</div>
+     <div class="rmore" id="regmore${i}"><div class="rmore-in">${esc(r.d)}</div></div></button>`;
 }
 $('#regTour').innerHTML=REGGROUPS.map(grp=>{
   const members=REGS.map((r,i)=>({r,i})).filter(x=>x.r.g===grp.g);
@@ -1110,11 +1115,10 @@ $('#regTour').innerHTML=REGGROUPS.map(grp=>{
     <div class="cpu">${members.map(x=>regCard(x.r,x.i)).join('')}</div>
   </div>`;
 }).join('');
-$('#tourMsg').innerHTML='<b>Pick one.</b> Each of these is a row of flip-flops exactly like the register you built at the top of this page. Only the wiring differs \u2014 and the colour tells you which of the five groups it belongs to.';
 $('#regTour').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b)return;
-  $$('#regTour .reg').forEach(x=>x.classList.remove('src'));b.classList.add('src');
-  const r=REGS[+b.dataset.i];
-  $('#tourMsg').innerHTML=`<b>${esc(r.k)} \u2014 ${esc(r.n)}.</b> In the recipe analogy: ${esc(r.role)} ${esc(r.d)} It holds: ${esc(r.w)}.`;});
+  const open=b.getAttribute('aria-expanded')==='true';
+  $$('#regTour .reg').forEach(x=>x.setAttribute('aria-expanded','false'));
+  b.setAttribute('aria-expanded',open?'false':'true');});
 
 /* ================= FETCH - DECODE - EXECUTE ================= */
 const MEM=[
